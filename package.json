@@ -1,0 +1,17 @@
+{
+  "name": "fintracker",
+  "version": "1.0.0",
+  "description": "Refactored monolithic app to separated frontend and backend.",
+  "scripts": {
+    "start": "npm run dev",
+    "dev:api": "cd backend/api && npm start",
+    "dev:auth": "cd backend/auth && npm start",
+    "dev:ml": "cd backend/ml && uvicorn main:app --reload --port 8000",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:auth\" \"npm run dev:frontend\"",
+    "build:frontend": "cd frontend && npm run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

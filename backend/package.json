@@ -1,0 +1,11 @@
+{
+  "name": "fintracker-backend",
+  "version": "1.0.0",
+  "description": "FinTracker backend — api, auth, and ml services",
+  "scripts": {
+    "dev:api": "cd api && npm start",
+    "dev:auth": "cd auth && npm start",
+    "dev:ml": "cd ml && uvicorn main:app --reload --port 8000"
+  },
+  "private": true
+}

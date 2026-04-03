@@ -1,0 +1,99 @@
+# ===========================
+# Dependencies
+# ===========================
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# ===========================
+# Environment Variables (NEVER commit these)
+# ===========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+
+# ===========================
+# Build Output
+# ===========================
+/build
+/dist
+frontend/dist
+/.next/
+/out/
+
+# ===========================
+# Logs
+# ===========================
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+logs/
+
+# ===========================
+# OS / Editor
+# ===========================
+.DS_Store
+Thumbs.db
+.vscode/settings.local.json
+*.pem
+
+# ===========================
+# TypeScript
+# ===========================
+*.tsbuildinfo
+next-env.d.ts
+
+# ===========================
+# Testing
+# ===========================
+/coverage
+
+# ===========================
+# Python / ML Service
+# ===========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+venv/
+env/
+.venv/
+.env/
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.so
+
+# ML model artifacts (large binary files — regenerate with train.py)
+backend/ml/artifacts/
+*.pkl
+*.joblib
+*.h5
+*.pt
+*.bin
+
+# ===========================
+# Misc
+# ===========================
+.vercel
+*.tgz
+.cache/
+c/

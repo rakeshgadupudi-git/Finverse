@@ -1,0 +1,307 @@
+description,category
+Monthly Groceries,Food
+Swiggy Order,Food
+Zomato Delivery,Food
+Dominos Pizza,Food
+McDonald's,Food
+KFC Bucket,Food
+BigBasket Order,Food
+Natures Basket,Food
+Restaurant Bill,Food
+Office Canteen Lunch,Food
+Tea & Snacks,Food
+Milk & Dairy Products,Food
+Vegetables Market,Food
+Chicken & Meat Shop,Food
+Fish Market Purchase,Food
+Rice & Pulses Buy,Food
+Blinkit Order,Food
+Zepto Grocery Delivery,Food
+Instamart Grocery,Food
+DMart Groceries,Food
+More Supermarket,Food
+Reliance Fresh,Food
+Cafe Coffee Day,Food
+Starbucks Coffee,Food
+Subway Sandwich,Food
+Burger King,Food
+Pizza Hut Order,Food
+Behrouz Biryani,Food
+Faasos Meal,Food
+Food Delivery App,Food
+Grocery Shopping,Food
+Evening Snacks,Food
+Dinner at Restaurant,Food
+Lunch Out,Food
+Breakfast Cafe,Food
+Online Food Order,Food
+Weekly Groceries,Food
+Fruit & Vegetable Shop,Food
+Bakery Purchase,Food
+Juice Bar,Food
+Monthly Rent,Rent
+House Rent,Rent
+PG Rent,Rent
+Hostel Fee,Rent
+Apartment Rent,Rent
+Studio Apartment Rent,Rent
+Society Maintenance,Rent
+Flat Rent,Rent
+Room Rent,Rent
+Parking Charges,Rent
+Rent Payment January,Rent
+Rent Payment February,Rent
+Rent Payment March,Rent
+Property Rent,Rent
+Office Rent,Rent
+Co-working Space Rent,Rent
+Paying Guest Rent,Rent
+House Rent Transfer,Rent
+Rental Payment,Rent
+Accommodation Rent,Rent
+Security Deposit,Rent
+Maintenance Charges,Rent
+Society Fee,Rent
+Lease Rent,Rent
+Flat Maintenance,Rent
+Ola Cab,Travel
+Uber Ride,Travel
+Rapido Bike Taxi,Travel
+Auto Rickshaw,Travel
+Petrol HP Pump,Travel
+Diesel Filling Station,Travel
+IRCTC Train Ticket,Travel
+IndiGo Flight,Travel
+SpiceJet Ticket,Travel
+Air India Flight,Travel
+Metro Card Recharge,Travel
+Bus Pass Monthly,Travel
+Cab & Fuel,Travel
+Weekend Trip,Travel
+Holiday Travel,Travel
+Flight Booking,Travel
+Train Tickets,Travel
+BMTC Bus Pass,Travel
+BEST Bus Ticket,Travel
+Fuel Petrol Pump,Travel
+Toll Charges,Travel
+FastTag Recharge,Travel
+Airport Taxi,Travel
+Vistara Flight,Travel
+Mumbai Local Pass,Travel
+Delhi Metro Recharge,Travel
+Bengaluru Metro Card,Travel
+Chennai Metro,Travel
+Cab Booking,Travel
+Ola Auto,Travel
+Rapido Cab,Travel
+GoIbibo Flight,Travel
+MakeMyTrip Hotel,Travel
+Yatra Train Ticket,Travel
+RedBus Ticket,Travel
+Intercity Bus,Travel
+Amazon Order,Shopping
+Flipkart Purchase,Shopping
+Myntra Clothing,Shopping
+AJIO Apparel,Shopping
+Meesho Order,Shopping
+Snapdeal Purchase,Shopping
+Nykaa Beauty Products,Shopping
+Electronics Purchase,Shopping
+Zara Clothing,Shopping
+H&M Shopping,Shopping
+Lifestyle Store,Shopping
+Westside Purchase,Shopping
+Max Fashion,Shopping
+Reliance Digital,Shopping
+Croma Electronics,Shopping
+Apple Store,Shopping
+Mobile Accessories,Shopping
+Household Items,Shopping
+Home Decor Purchase,Shopping
+Books & Stationery,Shopping
+Crossword Books,Shopping
+IKEA Purchase,Shopping
+Online Shopping,Shopping
+Retail Store Purchase,Shopping
+Garments Shopping,Shopping
+Footwear Purchase,Shopping
+Bag Shopping,Shopping
+Watch Purchase,Shopping
+Jewellery Purchase,Shopping
+Pepperfry Furniture,Shopping
+Urban Ladder,Shopping
+Decathlon Sports,Shopping
+Amazon Electronics,Shopping
+Flipkart Mobile,Shopping
+Samsung Store,Shopping
+SIP Mutual Fund,Investment
+Zerodha Stocks,Investment
+Groww Investment,Investment
+HDFC AMC SIP,Investment
+Axis MF SIP,Investment
+ICICI Prudential SIP,Investment
+Recurring Deposit,Investment
+Fixed Deposit,Investment
+PPF Contribution,Investment
+NPS Contribution,Investment
+Gold Investment,Investment
+Sovereign Gold Bond,Investment
+Stocks Purchase,Investment
+NSE Trading,Investment
+BSE Investment,Investment
+LIC Premium,Investment
+Term Insurance Premium,Investment
+ULIP Premium,Investment
+Zerodha Demat Charges,Investment
+Mutual Fund Investment,Investment
+ETF Purchase,Investment
+Index Fund SIP,Investment
+Equity Investment,Investment
+Debt Fund Investment,Investment
+ELSS SIP,Investment
+SBI Mutual Fund,Investment
+Nippon India MF,Investment
+Mirae Asset SIP,Investment
+Parag Parikh MF,Investment
+Stock Market Investment,Investment
+Netflix Subscription,Entertainment
+Amazon Prime,Entertainment
+Disney Hotstar,Entertainment
+Spotify Premium,Entertainment
+YouTube Premium,Entertainment
+JioCinema Subscription,Entertainment
+SonyLiv Premium,Entertainment
+ZEE5 Subscription,Entertainment
+BookMyShow Movie,Entertainment
+PVR Cinemas,Entertainment
+INOX Movie,Entertainment
+Steam Gaming,Entertainment
+PlayStation Store,Entertainment
+Xbox Game Pass,Entertainment
+Amusement Park,Entertainment
+Weekend Outing,Entertainment
+Concert Tickets,Entertainment
+Party Expenses,Entertainment
+Water Park Entry,Entertainment
+Theme Park,Entertainment
+Club Entry,Entertainment
+Bar Tab,Entertainment
+Movie Ticket,Entertainment
+OTT Subscription,Entertainment
+Music Concert,Entertainment
+Stand-up Comedy,Entertainment
+Live Event Ticket,Entertainment
+Bowling Alley,Entertainment
+Escape Room,Entertainment
+Laser Tag,Entertainment
+Apollo Pharmacy,Healthcare
+MedPlus Medicine,Healthcare
+1mg Order,Healthcare
+Tata 1mg,Healthcare
+PharmEasy Order,Healthcare
+Hospital Consultation,Healthcare
+Doctor Visit,Healthcare
+Pathology Lab,Healthcare
+Max Healthcare,Healthcare
+Fortis Hospital,Healthcare
+Apollo Hospital,Healthcare
+Cipla Medicine,Healthcare
+Dentist Appointment,Healthcare
+Physiotherapy Session,Healthcare
+Annual Health Checkup,Healthcare
+Gym Membership,Healthcare
+Yoga Classes,Healthcare
+Medicine Purchase,Healthcare
+Medical Bill,Healthcare
+Eye Checkup,Healthcare
+Blood Test,Healthcare
+X-Ray,Healthcare
+Vaccination,Healthcare
+Health Insurance Premium,Healthcare
+Pharmacy Bill,Healthcare
+Dermatologist Visit,Healthcare
+Orthopaedic Consultation,Healthcare
+Dietician Fee,Healthcare
+Diagnostic Centre,Healthcare
+Netmeds Order,Healthcare
+Electricity Bill,Utilities
+BESCOM Bill,Utilities
+TATA Power Bill,Utilities
+Water Bill Payment,Utilities
+HP Gas Cylinder,Utilities
+Indane Gas Booking,Utilities
+Bharat Gas,Utilities
+Airtel Broadband,Utilities
+BSNL Internet Bill,Utilities
+Jio Fiber,Utilities
+ACT Fibernet,Utilities
+Vodafone Recharge,Utilities
+Airtel Mobile Recharge,Utilities
+Jio Recharge,Utilities
+DTH Recharge,Utilities
+Tata Sky,Utilities
+Dish TV,Utilities
+Cable TV Bill,Utilities
+Internet Bill,Utilities
+Phone Recharge,Utilities
+BBMP Property Tax,Utilities
+Municipal Tax,Utilities
+Mobile Recharge,Utilities
+Broadband Bill,Utilities
+Electricity Recharge,Utilities
+Gas Bill,Utilities
+Adani Electricity,Utilities
+MSEB Bill,Utilities
+TNEB Bill,Utilities
+BESCOM Prepaid,Utilities
+Tuition Fees,Education
+College Fees,Education
+School Fees,Education
+Udemy Course,Education
+Coursera Subscription,Education
+LinkedIn Learning,Education
+BYJU'S Subscription,Education
+Unacademy Plus,Education
+Vedantu Classes,Education
+Textbooks Amazon,Education
+Stationery Purchase,Education
+Exam Fee,Education
+GATE Coaching,Education
+CAT Preparation,Education
+NEET Coaching,Education
+JEE Classes,Education
+Skill Course,Education
+Online Learning Platform,Education
+Workshop Fee,Education
+Training Program,Education
+Certification Exam,Education
+Language Course,Education
+MBA Fees,Education
+Engineering College Fee,Education
+Entrance Exam Fee,Education
+Monthly Salary,Others
+Freelance Payment,Others
+Consulting Fee,Others
+Cash Transfer,Others
+Bank Transfer,Others
+ATM Withdrawal,Others
+UPI Transfer,Others
+Personal Loan EMI,Others
+Credit Card Payment,Others
+Dividend Credit,Others
+Interest Credit,Others
+Rental Income,Others
+Part-time Work Payment,Others
+Bonus Payment,Others
+Salary Credit,Others
+Stipend,Others
+Allowance,Others
+Festival Bonus,Others
+Gratuity Payment,Others
+Incentive Pay,Others
+Reimbursement,Others
+Tax Refund,Others
+Cashback Credit,Others
+Wallet Transfer,Others
+EMI Payment,Others
