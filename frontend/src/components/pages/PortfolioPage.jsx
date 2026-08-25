@@ -141,16 +141,42 @@ export default function PortfolioPage({ currency }) {
     setAddErrors(e => ({ ...e, symbol: '', name: '' }));
   }, []);
 
+  // ── Close modal and reset all form state ──
+  const handleCloseModal = useCallback(() => {
+    setShowAddModal(false);
+    setAddForm({ symbol: '', name: '', sector: 'IT', qty: '', buyPrice: '', buyDate: new Date().toISOString().slice(0, 10) });
+    setSearchQuery('');
+    setSearchResults([]);
+    setShowSearchDrop(false);
+    setAddErrors({});
+  }, []);
+
   // ── Add holding with validation ────────────
   const handleAddSubmit = useCallback(() => {
     const sym = addForm.symbol.toUpperCase().trim();
     const errors = {};
-    if (!sym)                              errors.symbol    = 'Ticker symbol is required';
-    if (!addForm.name.trim())              errors.name      = 'Company name is required';
-    if (!addForm.qty || Number(addForm.qty) <= 0)
-                                           errors.qty       = 'Enter a valid quantity';
-    if (!addForm.buyPrice || Number(addForm.buyPrice) <= 0)
-                                           errors.buyPrice  = 'Enter a valid price';
+
+    if (!sym) {
+      errors.symbol = 'Ticker symbol is required';
+    } else if (enrichedHoldings.some((h) => h.symbol === sym)) {
+      errors.symbol = 'This stock is already in your portfolio — edit the existing holding instead';
+    }
+
+    if (!addForm.name.trim()) errors.name = 'Company name is required';
+
+    const qtyNum = Number(addForm.qty);
+    if (!addForm.qty || qtyNum <= 0 || !Number.isInteger(qtyNum)) {
+      errors.qty = 'Enter a valid whole number quantity (e.g. 10)';
+    }
+
+    if (!addForm.buyPrice || Number(addForm.buyPrice) <= 0) {
+      errors.buyPrice = 'Enter a valid buy price greater than 0';
+    }
+
+    if (addForm.buyDate && new Date(addForm.buyDate) > new Date()) {
+      errors.buyDate = 'Buy date cannot be in the future';
+    }
+
     setAddErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
@@ -158,32 +184,31 @@ export default function PortfolioPage({ currency }) {
       symbol: sym,
       name: addForm.name.trim(),
       sector: addForm.sector,
-      qty: Number(addForm.qty),
+      qty: qtyNum,
       buyPrice: Number(addForm.buyPrice),
       buyDate: addForm.buyDate,
     });
-    setAddForm({ symbol: '', name: '', sector: 'IT', qty: '', buyPrice: '', buyDate: new Date().toISOString().slice(0, 10) });
-    setSearchQuery('');
-    setAddErrors({});
-    setShowAddModal(false);
-  }, [addForm, addHolding]);
+    handleCloseModal();
+  }, [addForm, addHolding, enrichedHoldings, handleCloseModal]);
 
   const handleStartEdit = useCallback((id, qty, buyPrice) => {
     setEditingId(id);
     setEditForm({ qty: String(qty), buyPrice: String(buyPrice) });
+    setEditError('');
   }, []);
 
   const handleSaveEdit = useCallback(() => {
     if (editingId === null) return;
     const qty = Number(editForm.qty);
     const buyPrice = Number(editForm.buyPrice);
-    if (qty <= 0 || buyPrice <= 0) { setEditError('Quantity and buy price must be greater than 0'); return; }
+    if (!Number.isInteger(qty) || qty <= 0) { setEditError('Quantity must be a whole number greater than 0'); return; }
+    if (buyPrice <= 0) { setEditError('Buy price must be greater than 0'); return; }
     setEditError('');
     updateHolding(editingId, { qty, buyPrice });
     setEditingId(null);
   }, [editingId, editForm, updateHolding]);
 
-  const handleCancelEdit = useCallback(() => setEditingId(null), []);
+  const handleCancelEdit = useCallback(() => { setEditingId(null); setEditError(''); }, []);
 
   const handleDeleteHolding = useCallback((id) => {
     setDeleteHoldingId(id);
@@ -235,12 +260,6 @@ export default function PortfolioPage({ currency }) {
     if (!sixMDrawdown || sixMDrawdown.length === 0) return 0;
     return Math.min(...sixMDrawdown.map(d => d.drawdown));
   }, [sixMDrawdown]);
-
-  // Duplicate symbol check for Add Modal warning
-  const isDuplicateSymbol = useMemo(() =>
-    enrichedHoldings.some(h => h.symbol === addForm.symbol.toUpperCase().trim()),
-    [enrichedHoldings, addForm.symbol]
-  );
 
   // Total invested cost across all holdings (for header summary)
   const totalInvested = useMemo(() =>
@@ -603,7 +622,8 @@ export default function PortfolioPage({ currency }) {
             onChangeQty={(v) => setEditForm((f) => ({ ...f, qty: v }))}
             onChangeBuyPrice={(v) => setEditForm((f) => ({ ...f, buyPrice: v }))}
             onSave={handleSaveEdit}
-            onCancel={handleCancelEdit} /> :
+            onCancel={handleCancelEdit}
+            error={editError} /> :
 
 
           <HoldingRow
@@ -887,14 +907,15 @@ export default function PortfolioPage({ currency }) {
 
             {/* ═══ ADD STOCK MODAL ═══ */}
             {showAddModal &&
-      <div className="modal-overlay" onClick={() => setShowAddModal(false)}>
+      <div className="modal-overlay" onClick={handleCloseModal}>
                     <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                            <h3 style={{ fontSize: 16, fontWeight: 700, color: T.text.primary, margin: 0 }}>Add Stock Holding</h3>
-                            <button onClick={() => setShowAddModal(false)} style={{ background: 'none', border: 'none', color: T.text.tertiary, fontSize: 18, cursor: 'pointer', padding: 4 }}>✕</button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18, flexShrink: 0 }}>
+                            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>Add Stock Holding</h3>
+                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', color: 'var(--text-tertiary)', fontSize: 18, cursor: 'pointer', padding: 4 }}>✕</button>
                         </div>
 
-                        <div className="modal-form-grid">
+                        <div className="modal-card-body">
+                          <div className="modal-form-grid">
                             <div className="modal-field" style={{ position: 'relative' }}>
                                 <label className="modal-label">Symbol *</label>
                                 <div className="stock-search-wrap">
@@ -920,9 +941,6 @@ export default function PortfolioPage({ currency }) {
                                     )}
                                 </div>
                                 {addErrors.symbol && <div className="modal-field-error">{addErrors.symbol}</div>}
-                                {isDuplicateSymbol && !addErrors.symbol && (
-                                    <div className="modal-duplicate-warning">⚠️ This stock is already in your portfolio</div>
-                                )}
                             </div>
                             <div className="modal-field">
                                 <label className="modal-label">Company Name *</label>
@@ -965,14 +983,20 @@ export default function PortfolioPage({ currency }) {
                             </div>
                             <div className="modal-field">
                                 <label className="modal-label">Buy Date</label>
-                                <input className="modal-input" type="date"
-              value={addForm.buyDate}
-              onChange={(e) => setAddForm((f) => ({ ...f, buyDate: e.target.value }))} />
+                                <input
+                                    className={`modal-input${addErrors.buyDate ? ' modal-input-error' : ''}`}
+                                    type="date"
+                                    max={new Date().toISOString().slice(0, 10)}
+                                    value={addForm.buyDate}
+                                    onChange={(e) => { setAddForm((f) => ({ ...f, buyDate: e.target.value })); setAddErrors((err) => ({ ...err, buyDate: '' })); }}
+                                />
+                                {addErrors.buyDate && <div className="modal-field-error">{addErrors.buyDate}</div>}
                             </div>
+                          </div>
                         </div>
 
-                        <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                            <button className="modal-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                        <div className="modal-card-footer" style={{ display: 'flex', gap: 10 }}>
+                            <button className="modal-btn-secondary" onClick={handleCloseModal}>Cancel</button>
                             <button className="modal-btn-primary" onClick={handleAddSubmit}>
                                 + Add to Portfolio
                             </button>
@@ -981,8 +1005,6 @@ export default function PortfolioPage({ currency }) {
                 </div>
       }
 
-            {/* Edit validation error toast */}
-            {editError && <div className="error-state" style={{ position: 'fixed', bottom: 80, right: 24, zIndex: 100, maxWidth: 320 }}>{editError}</div>}
 
             {/* Delete confirmation */}
             {deleteHoldingId !== null && (

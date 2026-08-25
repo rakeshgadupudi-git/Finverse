@@ -235,4 +235,52 @@ const logout = async (req, res) => {
   return success(res, {}, 'Logged out successfully');
 };
 
-module.exports = { register, verifyEmail, login, refreshToken, forgotPassword, resetPassword, logout };
+// POST /api/auth/resend-otp
+const resendOtp = async (req, res, next) => {
+  try {
+    const { userId, type } = req.body;
+
+    if (!userId || !type) {
+      return error(res, 'userId and type are required', 400);
+    }
+    if (!['EMAIL_VERIFY', 'PASSWORD_RESET'].includes(type)) {
+      return error(res, 'type must be EMAIL_VERIFY or PASSWORD_RESET', 400);
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return error(res, 'User not found', 404);
+    }
+
+    // Rate limit: max 3 resend attempts per 15 minutes per userId+type
+    const windowStart = new Date(Date.now() - 15 * 60 * 1000);
+    const recentCount = await OTPToken.countDocuments({
+      userId,
+      type,
+      createdAt: { $gte: windowStart },
+    });
+    if (recentCount >= 3) {
+      return error(res, 'Too many OTP requests. Please wait 15 minutes before trying again.', 429);
+    }
+
+    // Delete existing unused OTPs of this type for this user
+    await OTPToken.deleteMany({ userId, type, used: false });
+
+    // Generate and store new OTP
+    const otp = generateOTP();
+    await OTPToken.create({
+      userId,
+      token: otp,
+      type,
+      expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+    });
+
+    await sendOTPEmail(user.email, otp, type);
+
+    return success(res, {}, 'OTP resent successfully');
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { register, verifyEmail, login, refreshToken, forgotPassword, resetPassword, logout, resendOtp };

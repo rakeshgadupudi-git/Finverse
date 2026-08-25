@@ -88,6 +88,7 @@ const DEFAULT_SETTINGS = {
 
 const Ctx = createContext(null);
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useSettings() {
   const ctx = useContext(Ctx);
   if (!ctx) throw new Error('useSettings must be used within SettingsProvider');
@@ -98,23 +99,18 @@ export function useSettings() {
    PROVIDER
    ═══════════════════════════════════════════ */
 export function SettingsProvider({ children }) {
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [toasts, setToasts] = useState([]);
-  const [hydrated, setHydrated] = useState(false);
-
-  // Hydrate from localStorage
-  useEffect(() => {
+  const [settings, setSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('fintracker_settings');
-      if (saved) setSettings({ ...DEFAULT_SETTINGS, ...JSON.parse(saved) });
-    } catch {/* ignore */}
-    setHydrated(true);
-  }, []);
+      return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+    } catch { return DEFAULT_SETTINGS; }
+  });
+  const [toasts, setToasts] = useState([]);
 
-  // Persist to localStorage
+  // Persist to localStorage whenever settings change
   useEffect(() => {
-    if (hydrated) localStorage.setItem('fintracker_settings', JSON.stringify(settings));
-  }, [settings, hydrated]);
+    try { localStorage.setItem('fintracker_settings', JSON.stringify(settings)); } catch { /* ignore */ }
+  }, [settings]);
 
   const update = useCallback((key, value) => {
     setSettings((prev) => ({ ...prev, [key]: value }));

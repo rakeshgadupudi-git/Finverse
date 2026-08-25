@@ -23,7 +23,7 @@ const otpTokenSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
-});
+}, { timestamps: true });
 
 // Auto-delete expired tokens
 otpTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });

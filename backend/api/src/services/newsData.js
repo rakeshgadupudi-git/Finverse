@@ -109,7 +109,10 @@ export async function fetchAndCacheNews() {
   }
   const API_URL = `https://newsdata.io/api/1/latest?apikey=${NEWSDATA_API_KEY}&category=business&q=stock+market+OR+finance+OR+investing+OR+sensex+OR+nifty+OR+economy+OR+earnings+OR+IPO&language=en`;
   try {
-    const res = await fetch(API_URL);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(API_URL, { signal: controller.signal });
+    clearTimeout(timeout);
     const json = await res.json();
     if (json.status === 'success' && json.results?.length) {
       const FINANCE_KEYWORDS = ['stock', 'market', 'finance', 'invest', 'sensex', 'nifty', 'bse', 'nse', 'economy', 'earnings', 'ipo', 'share', 'trade', 'fund', 'bank', 'equity', 'profit', 'revenue', 'gdp', 'inflation', 'rate', 'rupee', 'rbi', 'sebi', 'dividend'];

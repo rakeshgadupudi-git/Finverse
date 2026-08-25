@@ -41,9 +41,17 @@ function DonutChart({ data, currency }) {
 
   const SIZE = 190, cx = SIZE / 2, cy = SIZE / 2, r = 68, stroke = 34;
   const circ = 2 * Math.PI * r;
-  const GAP = 0;
-  let offset = 0;
   const hovItem = hov !== null ? data[hov] : null;
+
+  // Pre-compute offsets so no mutation happens inside JSX map
+  const segments = data.map((d, i) => {
+    const pct = d.value / total;
+    return { ...d, pct, dash: Math.max(0, pct * circ), idx: i };
+  });
+  const offsets = segments.reduce((arr, _seg, i) => {
+    const prev = i === 0 ? 0 : arr[i - 1] + segments[i - 1].pct * circ;
+    return [...arr, prev];
+  }, []);
 
   return (
     <div className="chart-enter" style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 20 }}>
@@ -51,12 +59,10 @@ function DonutChart({ data, currency }) {
       {/* LEFT — Bold donut ring */}
       <div style={{ position: 'relative', flexShrink: 0, width: SIZE, height: SIZE }}>
         <svg viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ width: '100%', height: '100%', overflow: 'visible' }}>
-          {data.map((d, i) => {
-            const pct = d.value / total;
-            const dash = Math.max(0, pct * circ - GAP);
+          {segments.map((d, i) => {
+            const dash = d.dash;
             const gap = circ - dash;
-            const o = offset;
-            offset += pct * circ;
+            const o = offsets[i];
             const isH = hov === i;
             return (
               <circle key={i} cx={cx} cy={cy} r={r} fill="none"
@@ -337,7 +343,47 @@ function StatCard({ label, value, sub, subColor, icon, accentColor, trend }) {
 /* ═══════════════════════════════════════════
    DASHBOARD PAGE
    ═══════════════════════════════════════════ */
+// ── Floating Action Button ─────────────────────────────────────────────────
+function FAB({ navigate }) {
+  const [open, setOpen] = useState(false);
+  const actions = [
+    { label: 'Add Transaction', icon: '↔', page: 'transactions' },
+    { label: 'Add Goal',        icon: '◎', page: 'goals' },
+    { label: 'Add Bill',        icon: '◆', page: 'bills' },
+    { label: 'Calculators',     icon: '∑', page: 'calculators' },
+  ];
+  return (
+    <div style={{ position: 'fixed', bottom: 28, right: 28, zIndex: 200, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
+      {open && actions.map((a) => (
+        <button key={a.page} type="button"
+          onClick={() => { setOpen(false); navigate(a.page); }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#1f2937', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 24, padding: '8px 16px', color: '#f9fafb', fontSize: 13, fontWeight: 600, cursor: 'pointer', boxShadow: '0 4px 20px rgba(0,0,0,0.4)', whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 16 }}>{a.icon}</span> {a.label}
+        </button>
+      ))}
+      <button type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="Quick Actions (Ctrl+N)"
+        style={{ width: 52, height: 52, borderRadius: '50%', background: open ? '#00a88a' : '#00d4aa', border: 'none', cursor: 'pointer', fontSize: 24, color: '#000', fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 24px rgba(0,212,170,0.5)', transform: open ? 'rotate(45deg)' : 'none', transition: 'all 0.2s ease' }}>
+        +
+      </button>
+    </div>
+  );
+}
+
 export default function DashboardPage({ transactions, currency, navigate, userName }) {
+  // Ctrl+N / Cmd+N opens Transactions page (to add)
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+        e.preventDefault();
+        navigate('transactions');
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [navigate]);
+
   /* —— Current month filter —— */
   const thisMonthTx = useMemo(() => {
     const now = new Date();
@@ -585,6 +631,9 @@ export default function DashboardPage({ transactions, currency, navigate, userNa
           ))}
         </div>
       </div>
+
+      {/* Floating Action Button */}
+      <FAB navigate={navigate} />
     </div>
   );
 }

@@ -67,24 +67,15 @@ function persistHoldings(holdings) {
 }
 
 export function PortfolioProvider({ children }) {
-  const [holdings, setHoldings] = useState(MOCK_PORTFOLIO);
-  const [hydrated, setHydrated] = useState(false);
-
-  // Hydrate from localStorage on mount
-  useEffect(() => {
+  const [holdings, setHoldings] = useState(() => {
     const persisted = loadPersistedHoldings();
-    if (persisted && persisted.length > 0) {
-      setHoldings(persisted);
-    }
-    setHydrated(true);
-  }, []);
+    return (persisted && persisted.length > 0) ? persisted : MOCK_PORTFOLIO;
+  });
 
-  // Persist whenever holdings change (after hydration)
+  // Persist whenever holdings change
   useEffect(() => {
-    if (hydrated) {
-      persistHoldings(holdings);
-    }
-  }, [holdings, hydrated]);
+    persistHoldings(holdings);
+  }, [holdings]);
 
   const tickers = useMemo(() => holdings.map((h) => h.symbol), [holdings]);
 
@@ -202,6 +193,7 @@ export function PortfolioProvider({ children }) {
 
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function usePortfolio() {
   const context = useContext(PortfolioContext);
   if (context === undefined) {

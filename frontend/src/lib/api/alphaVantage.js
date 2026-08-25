@@ -1,7 +1,7 @@
 // Alpha Vantage API service with in-memory caching and rate limiting
 // Free tier: 25 requests/day, 5 requests/minute
 
-const API_KEY = process.env.ALPHA_VANTAGE_API_KEY || '';
+const API_KEY = import.meta.env.VITE_ALPHA_VANTAGE_API_KEY || '';
 const BASE_URL = 'https://www.alphavantage.co/query';
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MIN_DELAY_MS = 1200; // 1.2s between calls (5/min limit)

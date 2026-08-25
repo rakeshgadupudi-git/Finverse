@@ -26,7 +26,10 @@ export async function fetchLiveQuote(ticker) {
   try {
     const symbol = toNseSymbol(ticker);
     const url = `${YF_BASE}/${encodeURIComponent(symbol)}?range=1d&interval=1d`;
-    const response = await fetch(url, { headers: YF_HEADERS });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    const response = await fetch(url, { headers: YF_HEADERS, signal: controller.signal });
+    clearTimeout(timeout);
     const data = await response.json();
     const meta = data?.chart?.result?.[0]?.meta;
 

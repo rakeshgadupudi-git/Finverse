@@ -4,7 +4,7 @@ import { T } from '@/lib/tokens';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { isMarketOpen } from '@/lib/utils';
 import { MOCK_TICKERS } from '@/lib/data/mockData';
-import { transactionApi, normalizeTx } from '@/services/api';
+import { transactionApi, normalizeTx, accountApi } from '@/services/api';
 import { SettingsProvider, useSettings } from '@/context/SettingsContext';
 import DashboardPage from '@/components/pages/DashboardPage';
 import TransactionsPage from '@/components/pages/TransactionsPage';
@@ -13,16 +13,69 @@ import InsightsPage from '@/components/pages/InsightsPage';
 import MarketNewsPage from '@/components/pages/MarketNewsPage';
 import StockDiscoveryPage from '@/components/pages/StockDiscoveryPage';
 import SettingsPage from '@/components/pages/SettingsPage';
+import TaxCalculatorPage from '@/components/pages/TaxCalculatorPage';
+import GoalsPage from '@/components/pages/GoalsPage';
+import BillsPage from '@/components/pages/BillsPage';
+import CalculatorsPage from '@/components/pages/CalculatorsPage';
+import CalendarPage from '@/components/pages/CalendarPage';
+import PlannedPaymentsPage from '@/components/pages/PlannedPaymentsPage';
+import ShoppingListPage from '@/components/pages/ShoppingListPage';
+import WarrantyVaultPage from '@/components/pages/WarrantyVaultPage';
+import LoyaltyCardsPage from '@/components/pages/LoyaltyCardsPage';
+import DebtTrackerPage from '@/components/pages/DebtTrackerPage';
+import AccountsPage from '@/components/pages/AccountsPage';
 
 
-const NAV_ITEMS = [
-{ id: 'dashboard', icon: '◈', label: 'Dashboard' },
-{ id: 'transactions', icon: '↔', label: 'Transactions' },
-{ id: 'portfolio', icon: '◎', label: 'Portfolio' },
-{ id: 'stocks', icon: '◇', label: 'Stock Intelligence' },
-{ id: 'insights', icon: '◉', label: 'Insights' },
-{ id: 'news', icon: '◆', label: 'Market News' },
-{ id: 'settings', icon: '◐', label: 'Settings' }];
+const NAV_GROUPS = [
+  {
+    label: 'Main',
+    items: [
+      { id: 'dashboard',    icon: '◈', label: 'Dashboard' },
+      { id: 'transactions', icon: '↔', label: 'Transactions' },
+      { id: 'portfolio',    icon: '◎', label: 'Portfolio' },
+      { id: 'goals',        icon: '◉', label: 'Goals' },
+    ],
+  },
+  {
+    label: 'Finance',
+    collapsible: true,
+    defaultOpen: true,
+    items: [
+      { id: 'bills',    icon: '◆',  label: 'Bills' },
+      { id: 'planned',  icon: '⏰', label: 'Planned Payments', sub: true },
+      { id: 'debt',     icon: '↕',  label: 'Debt Tracker',    sub: true },
+      { id: 'accounts', icon: '🏦', label: 'Accounts',        sub: true },
+    ],
+  },
+  {
+    label: 'Lifestyle',
+    collapsible: true,
+    defaultOpen: true,
+    items: [
+      { id: 'calendar', icon: '◷',  label: 'Calendar' },
+      { id: 'shopping', icon: '🛒', label: 'Shopping List',  sub: true },
+      { id: 'warranty', icon: '🛡', label: 'Warranty Vault', sub: true },
+      { id: 'loyalty',  icon: '💳', label: 'Loyalty Cards',  sub: true },
+    ],
+  },
+  {
+    label: 'Intelligence',
+    items: [
+      { id: 'stocks',   icon: '◇', label: 'Stock Intelligence' },
+      { id: 'insights', icon: '◉', label: 'Insights' },
+      { id: 'news',     icon: '◆', label: 'Market News' },
+    ],
+  },
+  {
+    label: 'Tools',
+    collapsible: true,
+    defaultOpen: false,
+    items: [
+      { id: 'tax',         icon: '₹', label: 'Tax Calculator', sub: true },
+      { id: 'calculators', icon: '∑', label: 'Calculators',    sub: true },
+    ],
+  },
+];
 
 
 function TickerBar() {
@@ -36,7 +89,7 @@ function TickerBar() {
           const json = await res.json();
           if (json.data && json.data.length > 0) setTickers(json.data);
         }
-      } catch {}
+      } catch { /* network unavailable — keep mock tickers */ }
     };
     fetchIndices();
     const id = setInterval(fetchIndices, 5 * 60 * 1000);
@@ -82,10 +135,54 @@ function ToastContainer() {
 
 }
 
+function GroupedNav({ page, setPage }) {
+  const [openGroups, setOpenGroups] = useState(() => {
+    const result = {};
+    NAV_GROUPS.forEach((g) => { result[g.label] = g.defaultOpen !== false; });
+    return result;
+  });
+
+  const toggleGroup = (label) => {
+    setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  return (
+    <div>
+      {NAV_GROUPS.map((group) => {
+        const isOpen = openGroups[group.label] !== false;
+        return (
+          <div key={group.label} className="nav-group">
+            <div
+              className={`nav-group-label${group.collapsible ? ' collapsible' : ''}`}
+              onClick={group.collapsible ? () => toggleGroup(group.label) : undefined}
+            >
+              <span>{group.label}</span>
+              {group.collapsible && (
+                <span className={`nav-group-chevron${isOpen ? ' open' : ''}`}>▶</span>
+              )}
+            </div>
+            {(!group.collapsible || isOpen) && group.items.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setPage(item.id)}
+                className={`nav-btn${item.sub ? ' nav-sub-btn' : ''}${page === item.id ? ' active' : ''}`}
+              >
+                <span className="nav-icon" style={{ opacity: page === item.id ? 1 : 0.55 }}>{item.icon}</span>
+                {item.label}
+              </button>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function AppShellInner({ currency, setCurrency, userName = 'User', setUserName, onLogout }) {
   const [page, setPage] = useState('dashboard');
   const [transactions, setTransactions] = useState([]);
   const [txLoading, setTxLoading] = useState(true);
+  const [accounts, setAccounts] = useState([]);
   const [open, setOpen] = useState(isMarketOpen());
   const { theme, toggleTheme } = useTheme();
 
@@ -105,20 +202,45 @@ function AppShellInner({ currency, setCurrency, userName = 'User', setUserName, 
         setTransactions([]);
       })
       .finally(() => setTxLoading(false));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Load accounts from backend on mount
+  useEffect(() => {
+    accountApi.getAll()
+      .then(({ data }) => setAccounts(data.accounts || []))
+      .catch(() => setAccounts([]));
+  }, []);
+
+  // Sync transactions to localStorage so FinChat can access them
+  useEffect(() => {
+    if (!txLoading) {
+      localStorage.setItem('fin_transactions', JSON.stringify(transactions));
+    }
+  }, [transactions, txLoading]);
 
   const pages = {
-    dashboard: <DashboardPage transactions={transactions} currency={currency} navigate={setPage} userName={userName} />,
+    dashboard:   <DashboardPage transactions={transactions} currency={currency} navigate={setPage} userName={userName} accounts={accounts} />,
     transactions: <TransactionsPage transactions={transactions} setTransactions={setTransactions} currency={currency} loading={txLoading} />,
-    portfolio: <PortfolioPage currency={currency} />,
-    stocks: <StockDiscoveryPage currency={currency} />,
-    insights: <InsightsPage transactions={transactions} currency={currency} />,
-    news: <MarketNewsPage />,
-    settings: <SettingsPage currency={currency} setCurrency={setCurrency} transactions={transactions} userName={userName} setUserName={setUserName} onLogout={onLogout} />
+    portfolio:   <PortfolioPage currency={currency} />,
+    goals:       <GoalsPage currency={currency} />,
+    bills:       <BillsPage currency={currency} />,
+    planned:     <PlannedPaymentsPage currency={currency} onTransactionAdded={(tx) => setTransactions((p) => [normalizeTx(tx), ...p])} />,
+    debt:        <DebtTrackerPage currency={currency} onTransactionAdded={(tx) => setTransactions((p) => [normalizeTx(tx), ...p])} />,
+    accounts:    <AccountsPage currency={currency} accounts={accounts} setAccounts={setAccounts} />,
+    calendar:    <CalendarPage transactions={transactions} currency={currency} />,
+    shopping:    <ShoppingListPage currency={currency} onTransactionAdded={(txs) => setTransactions((p) => [...(Array.isArray(txs) ? txs : [txs]).map(normalizeTx), ...p])} />,
+    warranty:    <WarrantyVaultPage transactions={transactions} />,
+    loyalty:     <LoyaltyCardsPage />,
+    stocks:      <StockDiscoveryPage currency={currency} />,
+    insights:    <InsightsPage transactions={transactions} currency={currency} />,
+    news:        <MarketNewsPage />,
+    tax:         <TaxCalculatorPage />,
+    calculators: <CalculatorsPage />,
+    settings:    <SettingsPage currency={currency} setCurrency={setCurrency} transactions={transactions} userName={userName} setUserName={setUserName} onLogout={onLogout} />
   };
 
   return (
-    <div style={{ background: T.bg.base, minHeight: '100vh', color: T.text.primary, fontFamily: "'Manrope',sans-serif" }}>
+    <div style={{ background: 'var(--bg-base)', minHeight: '100vh', color: 'var(--text-primary)', fontFamily: "'Manrope',sans-serif" }}>
             <aside className="sidebar">
                 <div className="sidebar-logo">
                     <div className="logo-text">Fin<span className="logo-accent">Tracker</span> <span style={{ fontSize: 14, color: T.accent.purple }}>AI</span></div>
@@ -132,17 +254,11 @@ function AppShellInner({ currency, setCurrency, userName = 'User', setUserName, 
                     </div>
                 </div>
                 <nav className="sidebar-nav">
-                    <div className="section-label" style={{ paddingLeft: 6, marginBottom: 10 }}>Navigation</div>
-                    {NAV_ITEMS.map((item) =>
-          <button key={item.id} onClick={() => setPage(item.id)} className={`nav-btn${page === item.id ? ' active' : ''}`}>
-                            <span className="nav-icon" style={{ opacity: page === item.id ? 1 : .55 }}>{item.icon}</span>
-                            {item.label}
-                        </button>
-          )}
+                    <GroupedNav page={page} setPage={setPage} />
                 </nav>
                 <div className="sidebar-footer">
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                        <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, background: 'linear-gradient(135deg,rgba(0,212,170,.2),rgba(157,119,247,.2))', border: '1px solid rgba(0,212,170,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: T.accent.teal, fontFamily: "'Fraunces',serif" }}>{userName.charAt(0).toUpperCase()}</div>
+                        <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, background: 'linear-gradient(135deg,var(--surface-teal),var(--surface-purple))', border: '1px solid var(--surface-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--teal)', fontFamily: "'Fraunces',serif" }}>{userName.charAt(0).toUpperCase()}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12.5, color: T.text.primary, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
                             <div style={{ fontSize: 10.5, color: T.text.tertiary, marginTop: 1 }}>Pro · NSE/BSE</div>

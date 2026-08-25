@@ -38,10 +38,6 @@ export default function StockDiscoveryPage({ currency }) {
 
   const closeModal = () => { setSelected(null); setTab('overview'); };
 
-  const scoreFromInsight = (stock) => {
-    const i = generateAIInsight(stock);
-    return (i.recommendation.confidence / 10).toFixed(1);
-  };
 
   return (
     <div className="fade-up" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

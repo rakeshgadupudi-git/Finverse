@@ -3,21 +3,15 @@
 import { useState, useEffect, useCallback } from 'react';
 
 export function useLocalStorage(key, initialValue) {
-  const [storedValue, setStoredValue] = useState(initialValue);
-  const [isHydrated, setIsHydrated] = useState(false);
-
-  // Hydrate from localStorage on mount (client-only)
-  useEffect(() => {
+  const [storedValue, setStoredValue] = useState(() => {
     try {
-      const item = window.localStorage.getItem(key);
-      if (item) {
-        setStoredValue(JSON.parse(item));
-      }
-    } catch (err) {
-      console.warn(`Error reading localStorage key "${key}":`, err);
+      const item = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+      return item ? JSON.parse(item) : initialValue;
+    } catch {
+      return initialValue;
     }
-    setIsHydrated(true);
-  }, [key]);
+  });
+  const isHydrated = true;
 
   // Persist to localStorage on changes (after hydration)
   useEffect(() => {

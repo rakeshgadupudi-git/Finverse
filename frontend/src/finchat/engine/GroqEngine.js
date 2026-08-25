@@ -1,8 +1,8 @@
 /**
  * GroqEngine (Secure Client Wrapper)
- * 
- * This module now only acts as a thin wrapper to call the backend API route.
- * Security (API keys) and Orchestration (Tool calling) are handled on the server.
+ *
+ * Thin wrapper that calls the backend /api/finchat/stream route.
+ * Security (API keys) and orchestration (tool calling) are handled server-side.
  */
 
 import { getFinContext, getSystemPrompt } from '../context/FinContext';
@@ -13,15 +13,17 @@ export async function* streamChat(userInput) {
   const systemPrompt = getSystemPrompt(context);
   const history = getHistory();
 
-  // Prepare optimized history (Point 13)
+  // Build message history (last 20 messages for context window efficiency)
   const messages = history.slice(-20).map((msg) => ({
     role: msg.role === 'assistant' ? 'assistant' : 'user',
     content: msg.content
   }));
-
-  // Add current input
   messages.push({ role: 'user', content: userInput });
 
+  // Save user message BEFORE the API call so it survives disconnects
+  saveMessage({ role: 'user', content: userInput, timestamp: Date.now() });
+
+  let reader = null;
   try {
     const response = await fetch('/api/finchat/stream', {
       method: 'POST',
@@ -35,24 +37,51 @@ export async function* streamChat(userInput) {
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      let errMsg = `Server error (${response.status})`;
+      try {
+        const errBody = await response.json();
+        errMsg = errBody.error || errBody.message || errMsg;
+      } catch {
+        errMsg = response.statusText || errMsg;
+      }
+      throw new Error(errMsg);
     }
 
-    const reader = response.body?.getReader();
+    reader = response.body?.getReader();
+    if (!reader) throw new Error('Streaming not supported by this browser');
+
+    // Use { stream: true } so multi-byte UTF-8 sequences split across chunks decode correctly
     const decoder = new TextDecoder();
     let fullResponse = '';
 
-    if (!reader) throw new Error('ReadableStream not supported');
-
     while (true) {
       const { done, value } = await reader.read();
-      if (done) break;
+      if (done) {
+        // Flush any remaining buffered multi-byte characters
+        const remaining = decoder.decode();
+        if (remaining) {
+          fullResponse += remaining;
+          yield remaining;
+        }
+        break;
+      }
 
-      const text = decoder.decode(value);
+      const text = decoder.decode(value, { stream: true });
+      if (!text) continue;
 
-      // Check for server-side errors passed in the stream
-      if (text.startsWith('[ERROR:')) {
-        yield text.replace('[ERROR:', '').replace(']', '');
+      // Status messages from tool execution — yield as typed object, not text
+      if (text.includes('[STATUS:')) {
+        const match = text.match(/\[STATUS:\s*(.*?)\]/);
+        if (match) {
+          yield { type: 'status', text: match[1].trim() };
+          continue;
+        }
+      }
+
+      // Server-side error sentinel
+      if (text.includes('[ERROR:')) {
+        const match = text.match(/\[ERROR:\s*(.*?)\]/s);
+        yield match ? match[1].trim() : 'An unexpected error occurred. Please try again.';
         return;
       }
 
@@ -60,22 +89,27 @@ export async function* streamChat(userInput) {
       yield text;
     }
 
-    // Point 7: Save only the final completed response
-    saveMessage({ role: 'user', content: userInput, timestamp: Date.now() });
-    saveMessage({ role: 'assistant', content: fullResponse.trim(), timestamp: Date.now() });
+    // Save completed assistant response to chat memory
+    if (fullResponse.trim()) {
+      saveMessage({ role: 'assistant', content: fullResponse.trim(), timestamp: Date.now() });
+    }
 
   } catch (error) {
+    // Cancel the reader to release the stream lock
+    if (reader) {
+      try { reader.cancel(); } catch { /* ignore */ }
+    }
     console.error('FinChat Engine Error:', error);
-    yield 'I encountered an issue connecting to my brain. Please check your connection and try again.';
+    yield `I encountered an issue: ${error.message}. Please try again.`;
   }
 }
 
-// Keeping a compatible getChatResponse for fallback or other components
+// Non-streaming fallback (used by other components if needed)
 export async function getChatResponse(userInput) {
   const stream = streamChat(userInput);
   let final = '';
   for await (const chunk of stream) {
-    final += chunk;
+    if (typeof chunk === 'string') final += chunk;
   }
   return final;
 }

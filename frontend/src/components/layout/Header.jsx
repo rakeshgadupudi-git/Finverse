@@ -15,16 +15,17 @@ export default function Header() {
   const router = useRouter();
   const searchRef = useRef(null);
 
-  useEffect(() => {
-    if (query.length >= 1) {
-      const res = searchStocks(query).slice(0, 6);
-      setResults(res);
+  const handleQueryChange = (e) => {
+    const q = e.target.value;
+    setQuery(q);
+    if (q.length >= 1) {
+      setResults(searchStocks(q).slice(0, 6));
       setShowResults(true);
     } else {
       setResults([]);
       setShowResults(false);
     }
-  }, [query]);
+  };
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -51,7 +52,7 @@ export default function Header() {
             type="text"
             placeholder="Search stocks... (e.g., Reliance, TCS)"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleQueryChange}
             className="header-search-input" />
           
                 </div>

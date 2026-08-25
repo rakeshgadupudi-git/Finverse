@@ -157,37 +157,50 @@ export const HoldingRow = memo(({
 
 export const HoldingEditRow = memo(({
   symbol, sector, editQty, editBuyPrice,
-  onChangeQty, onChangeBuyPrice, onSave, onCancel,
+  onChangeQty, onChangeBuyPrice, onSave, onCancel, error,
 }) => {
   const sc = SECTOR_COLORS[sector] || SECTOR_COLORS.Other;
   return (
-    <div className="holding-row editing-row" style={{ gridTemplateColumns: GRID_COLS }}>
-      <span>
-        <div style={{ fontWeight: 700, color: T.text.primary, fontSize: 13.5 }}>{symbol}</div>
-        <span style={{
-          display: 'inline-block', marginTop: 3, fontSize: 9,
-          padding: '1px 5px', borderRadius: 3,
-          background: `${sc}18`, color: sc, fontWeight: 700,
-        }}>{sector}</span>
-      </span>
-      <span>
-        <input
-          className="inline-edit-input" type="number" min="1"
-          value={editQty} placeholder="Qty"
-          onChange={(e) => onChangeQty(e.target.value)} />
-      </span>
-      <span>
-        <input
-          className="inline-edit-input" type="number" min="0.01" step="0.01"
-          value={editBuyPrice} placeholder="Price" style={{ textAlign: 'right' }}
-          onChange={(e) => onChangeBuyPrice(e.target.value)} />
-      </span>
-      <span /><span /><span /><span /><span /><span />
-      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-        <button className="action-icon-btn save-btn" onClick={onSave} title="Save">✓</button>
-        <button className="action-icon-btn cancel-btn" onClick={onCancel} title="Cancel">✕</button>
-      </span>
-    </div>
+    <>
+      <div className="holding-row editing-row" style={{ gridTemplateColumns: GRID_COLS }}>
+        <span>
+          <div style={{ fontWeight: 700, color: T.text.primary, fontSize: 13.5 }}>{symbol}</div>
+          <span style={{
+            display: 'inline-block', marginTop: 3, fontSize: 9,
+            padding: '1px 5px', borderRadius: 3,
+            background: `${sc}18`, color: sc, fontWeight: 700,
+          }}>{sector}</span>
+        </span>
+        <span>
+          <input
+            className="inline-edit-input" type="number" min="1" step="1"
+            value={editQty} placeholder="Qty"
+            onChange={(e) => onChangeQty(e.target.value)} />
+        </span>
+        <span>
+          <input
+            className="inline-edit-input" type="number" min="0.01" step="0.01"
+            value={editBuyPrice} placeholder="Price" style={{ textAlign: 'right' }}
+            onChange={(e) => onChangeBuyPrice(e.target.value)} />
+        </span>
+        <span /><span /><span /><span /><span /><span />
+        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <button className="action-icon-btn save-btn" onClick={onSave} title="Save">✓</button>
+          <button className="action-icon-btn cancel-btn" onClick={onCancel} title="Cancel">✕</button>
+        </span>
+      </div>
+      {error && (
+        <div style={{
+          padding: '6px 16px',
+          color: '#ff5e6c', fontSize: 11, fontWeight: 600,
+          background: 'rgba(255,94,108,0.08)',
+          borderLeft: '3px solid #ff5e6c',
+          borderRadius: '0 0 6px 6px',
+        }}>
+          ⚠ {error}
+        </div>
+      )}
+    </>
   );
 });
 

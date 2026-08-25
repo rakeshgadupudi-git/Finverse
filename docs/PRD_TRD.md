@@ -1,6 +1,5 @@
 # FinTracker — PRD & TRD
 
----
 
 ## PRD ( Product Requirements Document )
 

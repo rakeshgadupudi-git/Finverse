@@ -1,6 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { authApi } from '@/services/api';
+import PasswordInput from '@/components/ui/PasswordInput';
+import PasswordStrength from '@/components/ui/PasswordStrength';
 
 export default function LandingPage({ onLogin }) {
   const [mode, setMode] = useState('hero');
@@ -8,19 +10,61 @@ export default function LandingPage({ onLogin }) {
   const [pass, setPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [name, setName] = useState('');
-  const [otp, setOtp] = useState('');
+  // OTP state: 6 individual boxes
+  const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
+  const otpRefs = useRef([]);
   const [userId, setUserId] = useState(null);
   const [errors, setErrors] = useState({});
   const [apiError, setApiError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+  const [shake, setShake] = useState(false);
+  // OTP countdown timer (seconds)
+  const [otpTimer, setOtpTimer] = useState(0);
+  const timerRef = useRef(null);
+  // Forgot/Reset password state
+  const [resetUserId, setResetUserId] = useState(null);
+  const [newPass, setNewPass] = useState('');
+  const [confirmNewPass, setConfirmNewPass] = useState('');
+  const [resetOtp, setResetOtp] = useState('');
 
+  // ── OTP timer ────────────────────────────────────────────────────────────
+  const startTimer = useCallback(() => {
+    setOtpTimer(600);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setOtpTimer((t) => {
+        if (t <= 1) { clearInterval(timerRef.current); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    if (mode === 'otp') startTimer();
+    return () => clearInterval(timerRef.current);
+  }, [mode]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const formatTimer = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+
+  // ── Reset form ────────────────────────────────────────────────────────────
   const resetForm = () => {
     setEmail(''); setPass(''); setConfirmPass('');
-    setName(''); setOtp(''); setErrors({}); setApiError('');
+    setName(''); setOtpDigits(['', '', '', '', '', '']);
+    setErrors({}); setApiError('');
+    setNewPass(''); setConfirmNewPass(''); setResetOtp('');
+    clearInterval(timerRef.current);
   };
 
   const switchMode = (next) => { resetForm(); setMode(next); };
 
+  // ── Shake helper ──────────────────────────────────────────────────────────
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 600);
+  };
+
+  // ── Register ──────────────────────────────────────────────────────────────
   const handleRegister = async () => {
     const errs = {};
     if (name.trim().length < 2) errs.name = 'Name must be at least 2 characters';
@@ -32,23 +76,43 @@ export default function LandingPage({ onLogin }) {
     try {
       const data = await authApi.register(name.trim(), email, pass, confirmPass);
       setUserId(data.data.userId);
-      setMode('otp');
+      switchMode('otp');
     } catch (err) {
       setApiError(err.message);
+      triggerShake();
     } finally {
       setLoading(false);
     }
   };
 
+  // ── OTP verify ────────────────────────────────────────────────────────────
+  const getOtpValue = () => otpDigits.join('');
+
   const handleOTPVerify = async () => {
-    if (otp.length !== 6) { setErrors({ otp: 'Enter the 6-digit OTP' }); return; }
+    const otp = getOtpValue();
+    if (otp.length !== 6) { setErrors({ otp: 'Enter all 6 digits' }); return; }
     setErrors({}); setApiError(''); setLoading(true);
     try {
       await authApi.verifyEmail(userId, otp);
+      clearInterval(timerRef.current);
       switchMode('login');
-      setApiError('');
-      // Show success hint in apiError field (reusing for info)
       setTimeout(() => setApiError('Email verified! You can now sign in.'), 50);
+    } catch (err) {
+      setApiError(err.message);
+      triggerShake();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpTimer > 0) return;
+    setApiError(''); setLoading(true);
+    try {
+      await authApi.resendOtp(userId, 'EMAIL_VERIFY');
+      setOtpDigits(['', '', '', '', '', '']);
+      startTimer();
+      setApiError('New OTP sent!');
     } catch (err) {
       setApiError(err.message);
     } finally {
@@ -56,6 +120,7 @@ export default function LandingPage({ onLogin }) {
     }
   };
 
+  // ── Login ─────────────────────────────────────────────────────────────────
   const handleLogin = async () => {
     const errs = {};
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = 'Enter a valid email';
@@ -65,9 +130,36 @@ export default function LandingPage({ onLogin }) {
     try {
       const data = await authApi.login(email, pass);
       const { accessToken, refreshToken, user } = data.data;
-      localStorage.setItem('fintracker_access_token', accessToken);
-      localStorage.setItem('fintracker_refresh_token', refreshToken);
+      const storage = rememberMe ? localStorage : sessionStorage;
+      storage.setItem('fintracker_access_token', accessToken);
+      storage.setItem('fintracker_refresh_token', refreshToken);
+      // Always also set in localStorage so app-level check works
+      if (!rememberMe) {
+        localStorage.setItem('fintracker_access_token', accessToken);
+        localStorage.setItem('fintracker_refresh_token', refreshToken);
+      }
       onLogin(user);
+    } catch (err) {
+      // Parse 429 Retry-After if present
+      if (err.message && err.message.toLowerCase().includes('too many')) {
+        setApiError('Too many login attempts. Please wait a few minutes and try again.');
+      } else {
+        setApiError(err.message);
+      }
+      triggerShake();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── Forgot password ───────────────────────────────────────────────────────
+  const handleForgotPassword = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setErrors({ email: 'Enter a valid email' }); return; }
+    setErrors({}); setApiError(''); setLoading(true);
+    try {
+      const data = await authApi.forgotPassword(email);
+      setResetUserId(data.data?.userId || null);
+      switchMode('reset');
     } catch (err) {
       setApiError(err.message);
     } finally {
@@ -75,10 +167,71 @@ export default function LandingPage({ onLogin }) {
     }
   };
 
+  // ── Reset password ────────────────────────────────────────────────────────
+  const handleResetPassword = async () => {
+    const errs = {};
+    if (!resetOtp || resetOtp.length !== 6) errs.resetOtp = 'Enter the 6-digit OTP';
+    if (newPass.length < 6) errs.newPass = 'Password must be at least 6 characters';
+    if (newPass !== confirmNewPass) errs.confirmNewPass = 'Passwords do not match';
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({}); setApiError(''); setLoading(true);
+    try {
+      await authApi.resetPassword(resetUserId, resetOtp, newPass);
+      switchMode('login');
+      setTimeout(() => setApiError('Password reset! You can now sign in.'), 50);
+    } catch (err) {
+      setApiError(err.message);
+      triggerShake();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── OTP box key handlers ──────────────────────────────────────────────────
+  const handleOtpChange = (i, val) => {
+    const digit = val.replace(/\D/g, '').slice(-1);
+    const next = [...otpDigits];
+    next[i] = digit;
+    setOtpDigits(next);
+    if (digit && i < 5) otpRefs.current[i + 1]?.focus();
+    if (next.join('').length === 6) {
+      // Auto-submit
+      setTimeout(() => {
+        const otp = next.join('');
+        if (otp.length === 6) handleOTPVerifyDirect(next.join(''));
+      }, 100);
+    }
+  };
+
+  const handleOtpKeyDown = (i, e) => {
+    if (e.key === 'Backspace' && !otpDigits[i] && i > 0) {
+      otpRefs.current[i - 1]?.focus();
+    }
+  };
+
+  const handleOTPVerifyDirect = async (otpVal) => {
+    if (otpVal.length !== 6) return;
+    setErrors({}); setApiError(''); setLoading(true);
+    try {
+      await authApi.verifyEmail(userId, otpVal);
+      clearInterval(timerRef.current);
+      switchMode('login');
+      setTimeout(() => setApiError('Email verified! You can now sign in.'), 50);
+    } catch (err) {
+      setApiError(err.message);
+      triggerShake();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ── handleSubmit ──────────────────────────────────────────────────────────
   const handleSubmit = () => {
     if (mode === 'register') handleRegister();
     else if (mode === 'login') handleLogin();
     else if (mode === 'otp') handleOTPVerify();
+    else if (mode === 'forgot') handleForgotPassword();
+    else if (mode === 'reset') handleResetPassword();
   };
 
   return (
@@ -415,119 +568,145 @@ export default function LandingPage({ onLogin }) {
       </footer>
 
       {/* ── AUTH OVERLAY ─────────────────────── */}
-      {(mode === 'login' || mode === 'register' || mode === 'otp') && (
+      {/* Shake keyframes injected inline */}
+      <style>{`@keyframes auth-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(4px)}}`}</style>
+
+      {(mode === 'login' || mode === 'register' || mode === 'otp' || mode === 'forgot' || mode === 'reset') && (
         <div className="landing-auth-overlay" onClick={(e) => {
           if (e.target === e.currentTarget) switchMode('hero');
         }}>
-          <div className="landing-auth-card">
+          <div className="landing-auth-card" style={shake ? { animation: 'auth-shake 0.5s ease' } : {}}>
             <div className="landing-auth-title">
-              {mode === 'register' ? 'Create Account' : mode === 'otp' ? 'Verify Email' : 'Welcome back'}
+              {mode === 'register' ? 'Create Account'
+                : mode === 'otp'    ? 'Verify Email'
+                : mode === 'forgot' ? 'Forgot Password'
+                : mode === 'reset'  ? 'Reset Password'
+                : 'Welcome back'}
             </div>
             <div className="landing-auth-subtitle">
               {mode === 'register' ? 'Start your financial journey'
-                : mode === 'otp' ? `Enter the 6-digit OTP sent to ${email}`
+                : mode === 'otp'    ? `We sent a 6-digit code to ${email}`
+                : mode === 'forgot' ? 'Enter your email to receive a reset OTP'
+                : mode === 'reset'  ? 'Enter the OTP and your new password'
                 : 'Sign in to FinTracker'}
             </div>
 
             {apiError && (
-              <div className={`auth-api-message${apiError.startsWith('Email verified') ? ' auth-api-success' : ' auth-api-error'}`}>
+              <div className={`auth-api-message${(apiError.startsWith('Email verified') || apiError.startsWith('New OTP') || apiError.startsWith('Password reset')) ? ' auth-api-success' : ' auth-api-error'}`}>
                 {apiError}
               </div>
             )}
 
-            {/* REGISTER FIELDS */}
+            {/* ── REGISTER FIELDS ── */}
             {mode === 'register' && (
               <>
                 <div>
-                  <input
-                    className={`landing-auth-input${errors.name ? ' input-error' : ''}`}
-                    placeholder="Full Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
+                  <input className={`landing-auth-input${errors.name ? ' input-error' : ''}`} placeholder="Full Name" value={name} onChange={(e) => setName(e.target.value)} />
                   {errors.name && <span className="validation-error">{errors.name}</span>}
                 </div>
                 <div>
-                  <input
-                    className={`landing-auth-input${errors.email ? ' input-error' : ''}`}
-                    placeholder="Email address"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <input className={`landing-auth-input${errors.email ? ' input-error' : ''}`} placeholder="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                   {errors.email && <span className="validation-error">{errors.email}</span>}
                 </div>
                 <div>
-                  <input
-                    className={`landing-auth-input${errors.pass ? ' input-error' : ''}`}
-                    placeholder="Password"
-                    type="password"
-                    value={pass}
-                    onChange={(e) => setPass(e.target.value)}
-                  />
-                  {errors.pass && <span className="validation-error">{errors.pass}</span>}
+                  <PasswordInput className="landing-auth-input" placeholder="Password" value={pass} onChange={(e) => setPass(e.target.value)} error={errors.pass} autoComplete="new-password" />
+                  <PasswordStrength password={pass} />
                 </div>
                 <div>
-                  <input
-                    className={`landing-auth-input${errors.confirmPass ? ' input-error' : ''}`}
-                    placeholder="Confirm Password"
-                    type="password"
-                    value={confirmPass}
-                    onChange={(e) => setConfirmPass(e.target.value)}
-                  />
-                  {errors.confirmPass && <span className="validation-error">{errors.confirmPass}</span>}
+                  <PasswordInput className="landing-auth-input" placeholder="Confirm Password" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)} error={errors.confirmPass} autoComplete="new-password" />
                 </div>
               </>
             )}
 
-            {/* LOGIN FIELDS */}
+            {/* ── LOGIN FIELDS ── */}
             {mode === 'login' && (
               <>
                 <div>
-                  <input
-                    className={`landing-auth-input${errors.email ? ' input-error' : ''}`}
-                    placeholder="Email address"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                  />
+                  <input className={`landing-auth-input${errors.email ? ' input-error' : ''}`} placeholder="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
                   {errors.email && <span className="validation-error">{errors.email}</span>}
                 </div>
                 <div>
-                  <input
-                    className={`landing-auth-input${errors.pass ? ' input-error' : ''}`}
-                    placeholder="Password"
-                    type="password"
-                    value={pass}
-                    onChange={(e) => setPass(e.target.value)}
-                  />
-                  {errors.pass && <span className="validation-error">{errors.pass}</span>}
+                  <PasswordInput className="landing-auth-input" placeholder="Password" value={pass} onChange={(e) => setPass(e.target.value)} error={errors.pass} autoComplete="current-password" />
+                  <div style={{ textAlign: 'right', marginTop: 4 }}>
+                    <span style={{ fontSize: 12, color: '#00d4aa', cursor: 'pointer' }} onClick={() => switchMode('forgot')}>Forgot password?</span>
+                  </div>
+                </div>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'rgba(255,255,255,0.6)', cursor: 'pointer', userSelect: 'none' }}>
+                  <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} style={{ accentColor: '#00d4aa', width: 14, height: 14 }} />
+                  Remember me
+                </label>
+              </>
+            )}
+
+            {/* ── OTP 6-BOX ── */}
+            {mode === 'otp' && (
+              <div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', margin: '4px 0 8px' }}>
+                  {otpDigits.map((d, i) => (
+                    <input
+                      key={i}
+                      ref={(el) => (otpRefs.current[i] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={1}
+                      value={d}
+                      onChange={(e) => handleOtpChange(i, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                      className="landing-auth-input"
+                      style={{ width: 44, textAlign: 'center', fontSize: 22, fontWeight: 700, padding: '10px 0', letterSpacing: 0 }}
+                    />
+                  ))}
+                </div>
+                {errors.otp && <span className="validation-error">{errors.otp}</span>}
+
+                {/* Timer + Resend */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, fontSize: 13 }}>
+                  <span style={{ color: otpTimer > 0 ? '#9ca3af' : '#00d4aa', fontFamily: 'monospace', fontWeight: 600 }}>
+                    {otpTimer > 0 ? `⏱ ${formatTimer(otpTimer)}` : '⏱ Expired'}
+                  </span>
+                  <button type="button" onClick={handleResendOtp} disabled={otpTimer > 0 || loading}
+                    style={{ background: 'none', border: 'none', color: otpTimer > 0 ? '#4b5563' : '#00d4aa', cursor: otpTimer > 0 ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600 }}>
+                    Resend OTP
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ── FORGOT PASSWORD ── */}
+            {mode === 'forgot' && (
+              <div>
+                <input className={`landing-auth-input${errors.email ? ' input-error' : ''}`} placeholder="Email address" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+                {errors.email && <span className="validation-error">{errors.email}</span>}
+              </div>
+            )}
+
+            {/* ── RESET PASSWORD ── */}
+            {mode === 'reset' && (
+              <>
+                <div>
+                  <input className={`landing-auth-input${errors.resetOtp ? ' input-error' : ''}`} placeholder="6-digit OTP from email" value={resetOtp} maxLength={6} onChange={(e) => setResetOtp(e.target.value.replace(/\D/g, ''))} />
+                  {errors.resetOtp && <span className="validation-error">{errors.resetOtp}</span>}
+                </div>
+                <div>
+                  <PasswordInput className="landing-auth-input" placeholder="New Password" value={newPass} onChange={(e) => setNewPass(e.target.value)} error={errors.newPass} autoComplete="new-password" />
+                  <PasswordStrength password={newPass} />
+                </div>
+                <div>
+                  <PasswordInput className="landing-auth-input" placeholder="Confirm New Password" value={confirmNewPass} onChange={(e) => setConfirmNewPass(e.target.value)} error={errors.confirmNewPass} autoComplete="new-password" />
                 </div>
               </>
             )}
 
-            {/* OTP FIELD */}
-            {mode === 'otp' && (
-              <div>
-                <input
-                  className={`landing-auth-input${errors.otp ? ' input-error' : ''}`}
-                  placeholder="Enter 6-digit OTP"
-                  value={otp}
-                  maxLength={6}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-                />
-                {errors.otp && <span className="validation-error">{errors.otp}</span>}
-              </div>
-            )}
-
             <button className="landing-auth-submit" onClick={handleSubmit} disabled={loading}>
-              {loading ? 'Please wait...'
+              {loading ? 'Please wait…'
                 : mode === 'register' ? 'Create Account →'
-                : mode === 'otp' ? 'Verify OTP →'
+                : mode === 'otp'      ? 'Verify OTP →'
+                : mode === 'forgot'   ? 'Send Reset OTP →'
+                : mode === 'reset'    ? 'Reset Password →'
                 : 'Sign In →'}
             </button>
 
-            {mode !== 'otp' && (
+            {(mode === 'login' || mode === 'register') && (
               <div className="landing-auth-switch">
                 {mode === 'register' ? 'Have an account? ' : 'New here? '}
                 <span onClick={() => switchMode(mode === 'register' ? 'login' : 'register')}>

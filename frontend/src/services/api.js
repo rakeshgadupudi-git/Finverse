@@ -32,6 +32,15 @@ export const authApi = {
 
   login: (email, password) =>
     authPost('/login', { email, password }),
+
+  resendOtp: (userId, type) =>
+    authPost('/resend-otp', { userId, type }),
+
+  forgotPassword: (email) =>
+    authPost('/forgot-password', { email }),
+
+  resetPassword: (userId, otp, newPassword) =>
+    authPost('/reset-password', { userId, otp, newPassword }),
 };
 
 // ── Authenticated fetch with automatic token refresh ────────────────────────
@@ -109,5 +118,122 @@ export const normalizeTx = (t) => ({
 export const transactionApi = {
   getAll: ()      => txFetch(''),
   add:    (body)  => txFetch('', 'POST', body),
+  update: (id, body) => txFetch(`/${id}`, 'PATCH', body),
   remove: (id)    => txFetch(`/${id}`, 'DELETE'),
+};
+
+// ── Tax API ──────────────────────────────────────────────────────────────────
+
+export const taxApi = {
+  calculate: (payload) => authFetch(`${API_BASE}/tax/calculate`, 'POST', payload),
+  gst:       (payload) => fetch(`${API_BASE}/tax/gst`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).then((r) => r.json()),
+};
+
+// ── Goals API ────────────────────────────────────────────────────────────────
+
+const goalFetch = (path, method, body) => authFetch(`${API_BASE}/goals${path}`, method, body);
+
+export const goalApi = {
+  getAll:  ()           => goalFetch(''),
+  create:  (body)       => goalFetch('', 'POST', body),
+  update:  (id, body)   => goalFetch(`/${id}`, 'PATCH', body),
+  remove:  (id)         => goalFetch(`/${id}`, 'DELETE'),
+};
+
+// ── Bills API ────────────────────────────────────────────────────────────────
+
+const billFetch = (path, method, body) => authFetch(`${API_BASE}/bills${path}`, method, body);
+
+export const billApi = {
+  getAll:  ()         => billFetch(''),
+  create:  (body)     => billFetch('', 'POST', body),
+  update:  (id, body) => billFetch(`/${id}`, 'PATCH', body),
+  remove:  (id)       => billFetch(`/${id}`, 'DELETE'),
+};
+
+// ── Notifications API ────────────────────────────────────────────────────────
+
+const notifFetch = (path, method, body) => authFetch(`${API_BASE}/notifications${path}`, method, body);
+
+export const notificationApi = {
+  getAll:     ()   => notifFetch(''),
+  markRead:   (id) => notifFetch(`/${id}`, 'PATCH'),
+  markAllRead: ()  => notifFetch('/mark-all-read', 'PATCH'),
+};
+
+// ── Planned Payments API ─────────────────────────────────────────────────────
+
+const ppFetch = (path, method, body) => authFetch(`${API_BASE}/planned-payments${path}`, method, body);
+
+export const plannedPaymentApi = {
+  getAll: (params) => ppFetch(params ? `?${params}` : ''),
+  create: (body)   => ppFetch('', 'POST', body),
+  update: (id, b)  => ppFetch(`/${id}`, 'PATCH', b),
+  pay:    (id, b)  => ppFetch(`/${id}/pay`, 'POST', b),
+  remove: (id)     => ppFetch(`/${id}`, 'DELETE'),
+};
+
+// ── Shopping Lists API ───────────────────────────────────────────────────────
+
+const slFetch = (path, method, body) => authFetch(`${API_BASE}/shopping-lists${path}`, method, body);
+
+export const shoppingListApi = {
+  getLists:   ()               => slFetch(''),
+  createList: (body)           => slFetch('', 'POST', body),
+  updateList: (id, body)       => slFetch(`/${id}`, 'PATCH', body),
+  deleteList: (id)             => slFetch(`/${id}`, 'DELETE'),
+  addItem:    (listId, body)   => slFetch(`/${listId}/items`, 'POST', body),
+  updateItem: (lId, iId, body) => slFetch(`/${lId}/items/${iId}`, 'PATCH', body),
+  removeItem: (lId, iId)       => slFetch(`/${lId}/items/${iId}`, 'DELETE'),
+  convert:    (listId, body)   => slFetch(`/${listId}/convert`, 'POST', body),
+};
+
+// ── Warranties API ───────────────────────────────────────────────────────────
+
+const wFetch = (path, method, body) => authFetch(`${API_BASE}/warranties${path}`, method, body);
+
+export const warrantyApi = {
+  getAll:  ()         => wFetch(''),
+  create:  (body)     => wFetch('', 'POST', body),
+  update:  (id, body) => wFetch(`/${id}`, 'PATCH', body),
+  remove:  (id)       => wFetch(`/${id}`, 'DELETE'),
+};
+
+// ── Loyalty Cards API ────────────────────────────────────────────────────────
+
+const lcFetch = (path, method, body) => authFetch(`${API_BASE}/loyalty-cards${path}`, method, body);
+
+export const loyaltyCardApi = {
+  getAll:  ()         => lcFetch(''),
+  create:  (body)     => lcFetch('', 'POST', body),
+  update:  (id, body) => lcFetch(`/${id}`, 'PATCH', body),
+  remove:  (id)       => lcFetch(`/${id}`, 'DELETE'),
+};
+
+// ── Debts API ────────────────────────────────────────────────────────────────
+
+const debtFetch = (path, method, body) => authFetch(`${API_BASE}/debts${path}`, method, body);
+
+export const debtApi = {
+  getAll:        (params)        => debtFetch(params ? `?${params}` : ''),
+  create:        (body)          => debtFetch('', 'POST', body),
+  update:        (id, body)      => debtFetch(`/${id}`, 'PATCH', body),
+  addPayment:    (id, body)      => debtFetch(`/${id}/payments`, 'POST', body),
+  deletePayment: (id, paymentId) => debtFetch(`/${id}/payments/${paymentId}`, 'DELETE'),
+  remove:        (id)            => debtFetch(`/${id}`, 'DELETE'),
+};
+
+// ── Accounts API ─────────────────────────────────────────────────────────────
+
+const accFetch = (path, method, body) => authFetch(`${API_BASE}/accounts${path}`, method, body);
+
+export const accountApi = {
+  getAll:  ()         => accFetch(''),
+  create:  (body)     => accFetch('', 'POST', body),
+  update:  (id, body) => accFetch(`/${id}`, 'PATCH', body),
+  remove:  (id)       => accFetch(`/${id}`, 'DELETE'),
 };

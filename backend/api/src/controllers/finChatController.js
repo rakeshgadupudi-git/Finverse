@@ -14,6 +14,13 @@ const groqTools = toolDefinitions.map((tool) => ({
   },
 }));
 
+const STATUS_MAP = {
+  getPortfolioMetrics:    'Analyzing your portfolio...',
+  getExpenseInsights:     'Reviewing your spending patterns...',
+  getStockAnalysis:       'Looking up stock data...',
+  getFinancialProjections:'Running financial projections...',
+};
+
 export const streamChat = async (req, res) => {
   const GROQ_API_KEY = process.env.GROQ_API_KEY;
   if (!GROQ_API_KEY) {
@@ -22,6 +29,27 @@ export const streamChat = async (req, res) => {
 
   try {
     const { messages, systemPrompt, userTransactions = [], userPortfolio = [] } = req.body;
+
+    // Validate request before committing to streaming
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: 'messages must be a non-empty array' });
+    }
+    if (typeof systemPrompt !== 'string' || !systemPrompt.trim()) {
+      return res.status(400).json({ error: 'systemPrompt must be a non-empty string' });
+    }
+    if (!Array.isArray(userTransactions)) {
+      return res.status(400).json({ error: 'userTransactions must be an array' });
+    }
+    if (!Array.isArray(userPortfolio)) {
+      return res.status(400).json({ error: 'userPortfolio must be an array' });
+    }
+    const validRoles = ['user', 'assistant', 'system'];
+    for (const msg of messages) {
+      if (!msg || !validRoles.includes(msg.role) || typeof msg.content !== 'string') {
+        return res.status(400).json({ error: 'Each message must have a valid role and string content' });
+      }
+    }
+
     const userData = { transactions: userTransactions, portfolio: userPortfolio };
     const groq = new Groq({ apiKey: GROQ_API_KEY });
 
@@ -29,6 +57,10 @@ export const streamChat = async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     res.flushHeaders();
+
+    // Track client disconnects to avoid wasting Groq tokens
+    let clientDisconnected = false;
+    res.on('close', () => { clientDisconnected = true; });
 
     let currentMessages = [
       { role: 'system', content: systemPrompt },
@@ -40,7 +72,7 @@ export const streamChat = async (req, res) => {
 
     const runOrchestration = async () => {
       if (recursionDepth >= MAX_DEPTH) {
-        res.write('\n[Reached maximum tool-call depth — summarising from available data.]');
+        res.write('[ERROR: Reached maximum tool-call depth. Please try a more specific question.]');
         res.end();
         return;
       }
@@ -69,7 +101,14 @@ export const streamChat = async (req, res) => {
           currentMessages.push(assistantMsg);
 
           for (const toolCall of toolCalls) {
+            if (clientDisconnected) return;
+
             const name = toolCall.function.name;
+
+            // Send status indicator so user sees progress during tool execution
+            const statusText = STATUS_MAP[name] || 'Running analysis...';
+            res.write(`[STATUS: ${statusText}]`);
+
             let args = {};
             try {
               args = JSON.parse(toolCall.function.arguments || '{}');
@@ -109,15 +148,16 @@ export const streamChat = async (req, res) => {
           });
 
           for await (const chunk of finalStream) {
+            if (clientDisconnected) break;
             const text = chunk.choices[0]?.delta?.content;
             if (text) res.write(text);
           }
-          res.end();
+          if (!clientDisconnected) res.end();
         }
 
       } catch (err) {
         console.error('Orchestration Error:', err);
-        res.write(`\n[Error: ${err.message}]`);
+        res.write(`[ERROR: ${err.message}]`);
         res.end();
       }
     };
@@ -129,7 +169,7 @@ export const streamChat = async (req, res) => {
     if (!res.headersSent) {
       res.status(500).json({ error: error.message });
     } else {
-      res.write(`\n[Error: ${error.message}]`);
+      res.write(`[ERROR: ${error.message}]`);
       res.end();
     }
   }

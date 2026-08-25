@@ -111,7 +111,8 @@ export default function MarketNewsPage() {
     try { return new Set(JSON.parse(localStorage.getItem('fintracker_news_read') || '[]')); }
     catch { return new Set(); }
   });
-  const [visibleCount, setVisibleCount] = useState(8);
+  const [extraCount, setExtraCount] = useState(0);
+  const [lastFilterKey, setLastFilterKey] = useState('');
 
   useEffect(() => {
     fetch('/api/news?type=market')
@@ -128,6 +129,14 @@ export default function MarketNewsPage() {
     return true;
   }), [news, search, tagFilter]);
 
+  // Reset extra pages when filters change (derived during render, no effect needed)
+  const filterKey = `${search}|${tagFilter}`;
+  if (filterKey !== lastFilterKey) {
+    setExtraCount(0);
+    setLastFilterKey(filterKey);
+  }
+  const visibleCount = 8 + extraCount;
+
   const heroArticle = filtered[0];
   const restArticles = filtered.slice(1, visibleCount);
   const hasMore = visibleCount < filtered.length;
@@ -135,13 +144,10 @@ export default function MarketNewsPage() {
   const handleArticleClick = (id) => {
     setReadIds((prev) => {
       const next = new Set(prev).add(id);
-      try { localStorage.setItem('fintracker_news_read', JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem('fintracker_news_read', JSON.stringify([...next])); } catch { /* storage unavailable */ }
       return next;
     });
   };
-
-  // Reset visible count when filters change
-  useMemo(() => setVisibleCount(8), [search, tagFilter]);
 
   // Tag counts
   const tagCounts = useMemo(() => {
@@ -216,7 +222,7 @@ export default function MarketNewsPage() {
           )}
                     </div>
                     {hasMore && <div style={{ textAlign: 'center', paddingTop: 4 }}>
-                        <button className="secondary-btn" onClick={() => setVisibleCount((v) => v + 8)}>Load More</button>
+                        <button className="secondary-btn" onClick={() => setExtraCount((v) => v + 8)}>Load More</button>
                     </div>}
                 </> :
       filtered.length === 0 ?

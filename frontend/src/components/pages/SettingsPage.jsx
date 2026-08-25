@@ -5,6 +5,7 @@ import { useSettings } from '@/context/SettingsContext';
 import { useTheme } from '@/components/providers/ThemeProvider';
 import { exportTransactionsForRange } from '@/lib/exportCSV';
 import { userApi } from '@/services/api';
+import PasswordInput from '@/components/ui/PasswordInput';
 
 
 /* ─── Reusable sub-components ─── */
@@ -188,9 +189,9 @@ export default function SettingsPage({ currency, setCurrency, transactions, user
                     <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 8, paddingTop: 14 }}>
                       <div style={{ fontSize: 12.5, fontWeight: 600, color: T.text.secondary, marginBottom: 10 }}>Change Password</div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxWidth: 280 }}>
-                        <input className="input-field" type="password" placeholder="Current password" value={cpCurrent} onChange={(e) => setCpCurrent(e.target.value)} />
-                        <input className="input-field" type="password" placeholder="New password (min 6 chars)" value={cpNew} onChange={(e) => setCpNew(e.target.value)} />
-                        <input className="input-field" type="password" placeholder="Confirm new password" value={cpConfirm} onChange={(e) => setCpConfirm(e.target.value)} />
+                        <PasswordInput className="input-field" placeholder="Current password" value={cpCurrent} onChange={(e) => setCpCurrent(e.target.value)} autoComplete="current-password" />
+                        <PasswordInput className="input-field" placeholder="New password (min 6 chars)" value={cpNew} onChange={(e) => setCpNew(e.target.value)} autoComplete="new-password" />
+                        <PasswordInput className="input-field" placeholder="Confirm new password" value={cpConfirm} onChange={(e) => setCpConfirm(e.target.value)} autoComplete="new-password" />
                         <button className="primary-btn" style={{ fontSize: 12, padding: '6px 14px', alignSelf: 'flex-start' }} disabled={cpLoading} onClick={handleChangePassword}>
                           {cpLoading ? 'Saving…' : 'Update Password'}
                         </button>

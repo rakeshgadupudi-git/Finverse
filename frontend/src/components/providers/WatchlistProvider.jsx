@@ -17,6 +17,7 @@ const WatchlistContext = React.createContext({
   isInWatchlist: () => false
 });
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useWatchlist() {
   return React.useContext(WatchlistContext);
 }

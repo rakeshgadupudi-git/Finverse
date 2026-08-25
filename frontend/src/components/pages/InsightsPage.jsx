@@ -16,15 +16,20 @@ const SpendingDonut = memo(({ data, total, currency }) => {
 
   if (data.length === 0 || total === 0) return null;
 
-  let cum = 0;
+  // Pre-compute angles so no mutation happens inside JSX map
+  const angles = data.reduce((acc, [, val]) => {
+    const prev = acc.length > 0 ? acc[acc.length - 1].end : 0;
+    const end = prev + (val / total) * 360;
+    return [...acc, { start: prev, end }];
+  }, []);
+
   return (
     <div className="insights-donut-section">
       <div style={{ position: 'relative' }}>
         <svg viewBox="0 0 100 100" className="insights-donut-svg">
-          {data.map(([cat, amt], i) => {
-            const startAngle = cum / total * 360;
-            cum += amt;
-            const endAngle = cum / total * 360;
+          {data.map(([cat], i) => {
+            const startAngle = angles[i].start;
+            const endAngle = angles[i].end;
             const x1 = 50 + 40 * Math.cos(startAngle * Math.PI / 180);
             const y1 = 50 + 40 * Math.sin(startAngle * Math.PI / 180);
             const x2 = 50 + 40 * Math.cos(endAngle * Math.PI / 180);
@@ -214,7 +219,7 @@ export default function InsightsPage({ transactions, currency }) {
     });
   }, [filteredTransactions, range]);
 
-  const { avgMonthly, spendTrend } = useMemo(() => {
+  const { spendTrend } = useMemo(() => {
     // Exclude current (potentially incomplete) month from comparison base
     const pastMonths = monthlyData.slice(0, -1).filter((m) => m.expenses > 0);
     const avg = pastMonths.length > 0
@@ -222,7 +227,7 @@ export default function InsightsPage({ transactions, currency }) {
       : 0;
     const cur = monthlyData[monthlyData.length - 1];
     const trend = avg > 0 && cur ? (cur.expenses - avg) / avg * 100 : 0;
-    return { avgMonthly: avg, spendTrend: trend };
+    return { spendTrend: trend };
   }, [monthlyData]);
 
   const statCards = useMemo(() => [

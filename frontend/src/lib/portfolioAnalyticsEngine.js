@@ -156,8 +156,6 @@ beta)
     return { score: 0, grade: 'N/A', color: '#636e72', factors: [] };
   }
 
-  const totalValue = enriched.reduce((s, h) => s + h.currentValue, 0);
-
   // Factor 1: Diversification (max 25)
   const weights = enriched.map((h) => h.allocationPct / 100);
   const hhi = weights.reduce((s, w) => s + w * w, 0);

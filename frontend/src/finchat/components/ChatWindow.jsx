@@ -13,7 +13,6 @@ const QUICK_ACTIONS = [
 
 // ── Inline markdown renderer ──────────────────────────────────────────────
 function renderInline(text) {
-  // Handle **bold** and *italic*
   const parts = [];
   const re = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
   let last = 0, m;
@@ -60,6 +59,7 @@ export default function ChatWindow() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [statusText, setStatusText] = useState('');
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -73,25 +73,33 @@ export default function ChatWindow() {
   }, [messages, isTyping]);
 
   const handleSend = async (query) => {
-    const textToSearch = query || input;
-    if (!textToSearch.trim() || isTyping) return;
+    const textToSend = query || input;
+    if (!textToSend.trim() || isTyping) return;
 
-    const userMsg = { role: 'user', content: textToSearch, timestamp: Date.now() };
+    const userMsg = { role: 'user', content: textToSend, timestamp: Date.now() };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
+    setStatusText('');
 
     let aiResponse = '';
     try {
-      const stream = streamChat(textToSearch);
-      // Push empty placeholder — filtered from render until first chunk arrives
+      const stream = streamChat(textToSend);
+      // Push empty placeholder — filtered from render until first text chunk arrives
       setMessages((prev) => [...prev, { role: 'assistant', content: '', timestamp: Date.now() }]);
 
       for await (const chunk of stream) {
+        // Status message from tool execution
+        if (chunk && typeof chunk === 'object' && chunk.type === 'status') {
+          setStatusText(chunk.text);
+          continue;
+        }
+        // Real text chunk — clear status, accumulate text
+        setStatusText('');
         aiResponse += chunk;
         setMessages((prev) => {
           const last = prev[prev.length - 1];
-          if (last.role === 'assistant') {
+          if (last?.role === 'assistant') {
             return [...prev.slice(0, -1), { ...last, content: aiResponse }];
           }
           return prev;
@@ -99,7 +107,7 @@ export default function ChatWindow() {
       }
     } catch (error) {
       console.error('FinChat stream error:', error);
-      const errMsg = "I couldn't connect to my backend. Please check your connection and try again.";
+      const errMsg = error.message || "I couldn't connect to my backend. Please check your connection and try again.";
       setMessages((prev) => {
         const last = prev[prev.length - 1];
         if (last?.role === 'assistant' && !last.content) {
@@ -109,6 +117,7 @@ export default function ChatWindow() {
       });
     } finally {
       setIsTyping(false);
+      setStatusText('');
     }
   };
 
@@ -238,15 +247,29 @@ export default function ChatWindow() {
               </div>
             ))}
 
+            {/* Typing / Status indicator */}
             {isTyping && (
               <div style={{
                 alignSelf: 'flex-start', background: 'rgba(255,255,255,0.04)',
                 padding: '12px 16px', borderRadius: '18px 18px 18px 2px',
-                display: 'flex', gap: 4,
+                display: 'flex', gap: 6, alignItems: 'center',
+                border: '1px solid rgba(255,255,255,0.05)',
               }}>
-                <div className="typing-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: '#666', animation: 'typing 1s infinite' }} />
-                <div className="typing-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: '#666', animation: 'typing 1s infinite 0.2s' }} />
-                <div className="typing-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: '#666', animation: 'typing 1s infinite 0.4s' }} />
+                {statusText ? (
+                  <>
+                    <span style={{
+                      fontSize: 13, display: 'inline-block',
+                      color: '#00d4aa', animation: 'fc-spin 1s linear infinite',
+                    }}>⟳</span>
+                    <span style={{ fontSize: 12, color: '#00d4aa' }}>{statusText}</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="typing-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: '#666', animation: 'typing 1s infinite' }} />
+                    <div className="typing-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: '#666', animation: 'typing 1s infinite 0.2s' }} />
+                    <div className="typing-dot" style={{ width: 4, height: 4, borderRadius: '50%', background: '#666', animation: 'typing 1s infinite 0.4s' }} />
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -337,6 +360,10 @@ export default function ChatWindow() {
             @keyframes typing {
               0%, 100% { transform: translateY(0); }
               50% { transform: translateY(-4px); }
+            }
+            @keyframes fc-spin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
             }
           `}</style>
         </div>
