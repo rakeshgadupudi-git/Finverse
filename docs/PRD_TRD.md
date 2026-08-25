@@ -70,6 +70,58 @@
 ### Pagination
 - All list endpoints (transactions, news, holdings, search results)
 
+### Account Management
+- Bank accounts, credit cards, e-wallets, and investment portfolio balance tracking
+- Support for multiple account types (savings, current, credit, wallet, investment, loan)
+- Aggregated net worth view
+
+### Bill Tracking & Subscriptions
+- Track utility bills, subscriptions, rent, and EMIs
+- Due dates tracking (day of month 1–31) with configurable reminder periods (1–30 days)
+- Mark bills as paid and track last payment date
+
+### Debt & Loan Tracker
+- Manage personal loans, peer-to-peer lending, or borrowings
+- Support for interest rates and calculation types (none, simple, compound)
+- Installment payments tracking with reference to transactions
+
+### Financial Goals
+- Create savings and milestone goals (Emergency Fund, Wedding, Education, etc.)
+- Set target amount and target date, and calculate needed monthly contributions
+- Auto-track progress percentage
+
+### Loyalty Cards Vault
+- Digitize physical loyalty/membership cards
+- Store barcode/QR values and types (CODE128, EAN13, QR, NONE)
+- Custom card styling (colors) and expiry reminders
+
+### Planned Payments
+- Schedule future or recurring transactions (Food, Transport, Rent, etc.)
+- Set reminder days before the scheduled date
+- Automatically or manually convert to active transaction on due date
+
+### Shopping Lists
+- Maintain shopping lists with itemized products, quantities, units, and estimated prices
+- Checked state management for items
+- Convert checked items directly into expense transactions
+
+### Warranty Vault
+- Upload and archive purchase receipts and serial numbers for household items/gadgets
+- Track warranty period (in months) and calculate precise expiry dates
+- Automatic reminder alerts a few months before warranty expiration
+
+### Notifications Center
+- Centralized user inbox for app alerts (alert, goal, bill, system)
+- Read/unread status tracking
+- Dynamic banner notices in the header
+
+### Tax & GST Engines (India)
+- AY 2025-26 Indian Income Tax calculator supporting Old vs New tax regimes
+- Incorporates Standard Deduction (₹50k Old / ₹75k New), 80C, 80D, NPS, and Home Loan interest deductions
+- Computes Section 87A rebate (capped at ₹12.5k for Old regime / ₹25k for New regime) and Marginal Relief
+- Public GST calculator showing Base Amount, GST Rate, Tax Amount, and CGST/SGST split
+
+
 ---
 
 ## TRD ( Technical Requirements Document )
@@ -219,7 +271,146 @@
 
 ---
 
+### Accounts
+
+- Create Account
+  - POST ( name, accountType, institution?, balance?, creditLimit?, currentOutstanding?, color?, notes? ) → save to DB with userId
+- Get Accounts
+  - GET → return all active accounts for user, computing aggregated net worth, total balance, credit outstanding, and asset/liability stats
+- Update Account
+  - PATCH ( id ) ( name?, accountType?, institution?, balance?, creditLimit?, currentOutstanding?, color?, notes? ) → update account record
+- Delete Account
+  - DELETE ( id ) → set `isActive = false`
+
+---
+
+### Bills
+
+- Create Bill
+  - POST ( name, amount, dueDate, frequency?, category?, reminderDaysBefore? ) → save to DB with userId
+- Get Bills
+  - GET → return active bills for the user, sorting by closest upcoming due date in the current calendar month
+- Update Bill / Mark Paid
+  - PATCH ( id ) ( name?, amount?, dueDate?, frequency?, category?, reminderDaysBefore?, lastPaidAt? ) → update bill record. When marked paid, set `lastPaidAt = Date.now`
+- Delete Bill
+  - DELETE ( id ) → set `isActive = false`
+
+---
+
+### Debts
+
+- Create Debt
+  - POST ( direction, counterpartyName, principalAmount, interestRate?, interestType?, startDate, dueDate?, notes? ) → save to DB with userId
+- Get Debts
+  - GET → return all active debts, calculating total borrowed, total lent, remaining balance per debt, and interest accumulated
+- Add Debt Payment
+  - POST ( id ) /payments ( amount, date?, note?, convertToTransaction? ) → push payment sub-document, create corresponding Transaction of type INCOME/EXPENSE if requested, and update debt status/closedAt if balance is settled
+- Delete Debt
+  - DELETE ( id ) → set `isActive = false`
+
+---
+
+### Goals
+
+- Create Goal
+  - POST ( title, targetAmount, currentAmount?, targetDate, category?, monthlyContribution?, notes? ) → save to DB with userId
+- Get Goals
+  - GET → return all active goals, computing percentage progress and average monthly contribution needed to reach target
+- Update Goal / Add Savings
+  - PATCH ( id ) ( title?, targetAmount?, currentAmount?, targetDate?, category?, monthlyContribution?, notes?, isCompleted? ) → update goal record
+- Delete Goal
+  - DELETE ( id ) → set `isActive = false`
+
+---
+
+### Loyalty Cards
+
+- Create Card
+  - POST ( cardName, issuer?, cardType?, cardNumber?, barcodeValue?, barcodeType?, expiryDate?, color?, notes? ) → save to DB with userId
+- Get Cards
+  - GET → return all active cards for user
+- Update Card
+  - PATCH ( id ) ( cardName?, issuer?, cardType?, cardNumber?, barcodeValue?, barcodeType?, expiryDate?, color?, notes? ) → update card record
+- Delete Card
+  - DELETE ( id ) → set `isActive = false`
+
+---
+
+### Notifications
+
+- Get Notifications
+  - GET → return notifications for user (sorted by descending createdAt) with pagination and read/unread filters
+- Mark as Read
+  - PATCH ( id ) /read → set `isRead = true`
+- Mark All as Read
+  - POST /read-all → set `isRead = true` for all notifications of the user
+- Create Notification
+  - Internal system service triggered by cron/checkers (e.g. bill reminders, goal progression, warranty limits) to push an entry to DB
+
+---
+
+### Planned Payments
+
+- Create Planned Payment
+  - POST ( title, amount, scheduledDate, category?, reminderDaysBefore?, notes? ) → save to DB with userId
+- Get Planned Payments
+  - GET → return pending/paid planned payments for user
+- Convert to Transaction
+  - POST ( id ) /convert → change status to 'paid', create corresponding Transaction (type EXPENSE, category, description=title, amount, date=scheduledDate) and reference `convertedTxId` in PlannedPayment
+- Delete Planned Payment
+  - DELETE ( id ) → set `isActive = false`
+
+---
+
+### Shopping Lists
+
+- Create Shopping List
+  - POST ( name, store?, items[] ) → save to DB with userId
+- Get Shopping Lists
+  - GET → return all active shopping lists for user
+- Add/Update/Check Items
+  - PATCH ( id ) ( name?, store?, status?, items[] ) → update list fields or list items. If checking an item and converting, post to transaction service
+- Convert List to Expense
+  - POST ( id ) /convert → create transaction representing the sum of checked items actualPrices, mark shopping list status as 'completed'
+- Delete Shopping List
+  - DELETE ( id ) → set `isActive = false`
+
+---
+
+### Warranties
+
+- Create Warranty
+  - POST ( productName, brand?, itemType?, purchaseDate, warrantyMonths, serialNumber?, notes?, receiptImageUrl?, reminderMonthsBefore? ) → save to DB with userId
+- Get Warranties
+  - GET → return active warranties, calculating precise expiry dates and months/days remaining
+- Update Warranty
+  - PATCH ( id ) ( productName?, brand?, itemType?, purchaseDate?, warrantyMonths?, serialNumber?, notes?, receiptImageUrl?, reminderMonthsBefore? ) → update warranty record
+- Delete Warranty
+  - DELETE ( id ) → set `isActive = false`
+
+---
+
+### Tax & GST Engines
+
+- Calculate Income Tax (AY 2025-26)
+  - POST /calculate ( age, basicSalary, hraReceived, specialAllowance, ltaReceived, rentPaid, metroCity, standardDeductionsOverride?, section80C?, section80D_self?, section80D_parents?, section80CCD_1B_nps?, interestHomeLoan?, otherIncome? )
+  - Logic:
+    1. Apply Standard Deduction (₹50,000 for Old, ₹75,000 for New)
+    2. Compute HRA Exemption (minimum of: Actual HRA, Rent Paid - 10% Basic, 50% Basic for metro or 40% for non-metro)
+    3. Old Regime deductions: Cap 80C at ₹1.5L, 80D self/parents at ₹25k/₹50k, NPS at ₹50k, Home Loan at ₹2L
+    4. Compute Taxable Income under both Regimes
+    5. Compute Slab Tax progressive steps
+    6. Apply Rebate 87A (income ≤ ₹5L Old capped at ₹12.5k / income ≤ ₹7L New capped at ₹25k) with Marginal Relief if applicable
+    7. Add 4% Health & Education Cess
+    8. Generate comparison report with optimal regime selection and tax-saving investment suggestions
+- Calculate GST
+  - POST /gst ( amount, gstRate, isInclusive )
+  - Returns Base Amount, GST Amount, Total Amount, CGST (GST/2), and SGST (GST/2)
+
+---
+
 ## DB Schema
+
 
 ### User
 ```
@@ -320,7 +511,159 @@ toolCalls       ( json, nullable )
 createdAt       ( timestamp )
 ```
 
+### Account
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+name                ( string, required )
+accountType         ( enum: savings, current, salary, credit, wallet, investment, loan, other, required )
+institution         ( string, default '' )
+balance             ( number, default 0 )
+creditLimit         ( number, default 0 )
+currentOutstanding  ( number, default 0 )
+color               ( string, default '#00d4aa' )
+lastUpdated         ( date, default Date.now )
+notes               ( string, default '' )
+isActive            ( boolean, default true )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
+### Bill
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+name                ( string, required )
+amount              ( number, required )
+dueDate             ( number, range 1-31, required )
+frequency           ( enum: monthly, quarterly, yearly, default monthly )
+category            ( enum: Streaming, Utilities, Insurance, EMI, Rent, Subscription, Other, default Other )
+isActive            ( boolean, default true )
+lastPaidAt          ( date, default null )
+reminderDaysBefore  ( number, default 3 )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
+### Debt
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+direction           ( enum: BORROWED, LENT, required )
+counterpartyName    ( string, required )
+principalAmount     ( number, required )
+interestRate        ( number, default 0 )
+interestType        ( enum: none, simple, compound, default none )
+startDate           ( date, default Date.now, required )
+dueDate             ( date, default null )
+payments            ( array of { amount, date, note, txId } )
+status              ( enum: active, closed, default active )
+closedAt            ( date, default null )
+linkedTransactionId ( foreign_key → Transaction, default null )
+notes               ( string, default '' )
+isActive            ( boolean, default true )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
+### Goal
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+title               ( string, required )
+targetAmount        ( number, required )
+currentAmount       ( number, default 0 )
+targetDate          ( date, required )
+category            ( enum: Emergency Fund, Vehicle, Home, Education, Vacation, Retirement, Wedding, Other, default Other )
+monthlyContribution ( number, default 0 )
+notes               ( string, default '' )
+isCompleted         ( boolean, default false )
+isActive            ( boolean, default true )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
+### LoyaltyCard
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+cardName            ( string, required )
+issuer              ( string, default '' )
+cardType            ( enum: Loyalty, Credit, Debit, Membership, Gift, Other, default Loyalty )
+cardNumber          ( string, default '' )
+barcodeValue        ( string, default '' )
+barcodeType         ( enum: CODE128, EAN13, QR, NONE, default CODE128 )
+expiryDate          ( date, default null )
+color               ( string, default '#00d4aa' )
+notes               ( string, default '' )
+isActive            ( boolean, default true )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
+### Notification
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+title               ( string, required, max 120 chars )
+message             ( string, required, max 500 chars )
+type                ( enum: alert, goal, bill, system, default system )
+isRead              ( boolean, default false )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
+### PlannedPayment
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+title               ( string, required )
+amount              ( number, required )
+scheduledDate       ( date, required )
+category            ( enum: Food, Transport, Entertainment, Shopping, Health, Rent, Utilities, Investment, Others, default Others )
+notes               ( string, default '' )
+reminderDaysBefore  ( number, default 3 )
+status              ( enum: pending, paid, cancelled, default pending )
+convertedTxId       ( foreign_key → Transaction, default null )
+isActive            ( boolean, default true )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
+### ShoppingList
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+name                ( string, default 'Shopping List', required )
+store               ( string, default '' )
+status              ( enum: active, completed, default active )
+items               ( array of { name, estimatedPrice, actualPrice, quantity, unit, category, checked, convertedTxId } )
+isActive            ( boolean, default true )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
+### Warranty
+```
+id                  ( primary_key, objectid )
+userId              ( foreign_key → User, required )
+productName         ( string, required )
+brand               ( string, default '' )
+itemType            ( enum: Electronics, Appliances, Furniture, Vehicle, Jewelry, Other, default Electronics )
+purchaseDate        ( date, required )
+warrantyMonths      ( number, required )
+serialNumber        ( string, default '' )
+notes               ( string, default '' )
+linkedTransactionId ( foreign_key → Transaction, default null )
+receiptImageUrl     ( string, default '' )
+reminderMonthsBefore( number, default 1 )
+isActive            ( boolean, default true )
+createdAt           ( timestamp )
+updatedAt           ( timestamp )
+```
+
 ---
+
 
 ## API Design
 
@@ -542,3 +885,196 @@ Eg:   /api/finchat/sessions/:sessionId/messages?limit=50&offset=0
 Delete Session
 DELETE /api/finchat/sessions/:sessionId
 ```
+
+---
+
+### Accounts
+
+```
+Get Accounts & Net Worth
+GET   /api/accounts
+
+Create Account
+POST  /api/accounts
+Body: { name, accountType, institution?, balance?, creditLimit?, currentOutstanding?, color?, notes? }
+
+Update Account
+PATCH /api/accounts/:accountId
+Body: { name?, accountType?, institution?, balance?, creditLimit?, currentOutstanding?, color?, notes? }
+
+Delete Account (soft)
+DELETE /api/accounts/:accountId
+```
+
+---
+
+### Bills
+
+```
+Get Bills List
+GET   /api/bills
+
+Create Bill
+POST  /api/bills
+Body: { name, amount, dueDate, frequency?, category?, reminderDaysBefore? }
+
+Update Bill / Mark Paid
+PATCH /api/bills/:billId
+Body: { name?, amount?, dueDate?, frequency?, category?, reminderDaysBefore?, lastPaidAt? }
+
+Delete Bill (soft)
+DELETE /api/bills/:billId
+```
+
+---
+
+### Debts
+
+```
+Get Debts List
+GET   /api/debts
+
+Create Debt
+POST  /api/debts
+Body: { direction, counterpartyName, principalAmount, interestRate?, interestType?, startDate, dueDate?, notes? }
+
+Add Debt Payment
+POST  /api/debts/:debtId/payments
+Body: { amount, date?, note?, convertToTransaction? }
+
+Delete Debt (soft)
+DELETE /api/debts/:debtId
+```
+
+---
+
+### Goals
+
+```
+Get Goals List
+GET   /api/goals
+
+Create Goal
+POST  /api/goals
+Body: { title, targetAmount, currentAmount?, targetDate, category?, monthlyContribution?, notes? }
+
+Update Goal / Add Savings
+PATCH /api/goals/:goalId
+Body: { title?, targetAmount?, currentAmount?, targetDate?, category?, monthlyContribution?, notes?, isCompleted? }
+
+Delete Goal (soft)
+DELETE /api/goals/:goalId
+```
+
+---
+
+### Loyalty Cards
+
+```
+Get Loyalty Cards List
+GET   /api/loyalty-cards
+
+Create Loyalty Card
+POST  /api/loyalty-cards
+Body: { cardName, issuer?, cardType?, cardNumber?, barcodeValue?, barcodeType?, expiryDate?, color?, notes? }
+
+Update Loyalty Card
+PATCH /api/loyalty-cards/:cardId
+Body: { cardName?, issuer?, cardType?, cardNumber?, barcodeValue?, barcodeType?, expiryDate?, color?, notes? }
+
+Delete Loyalty Card (soft)
+DELETE /api/loyalty-cards/:cardId
+```
+
+---
+
+### Notifications
+
+```
+Get Notifications Feed
+GET   /api/notifications
+Eg:   /api/notifications?isRead=false&limit=20&offset=0
+
+Mark Notification as Read
+PATCH /api/notifications/:notificationId/read
+
+Mark All Notifications as Read
+POST  /api/notifications/read-all
+```
+
+---
+
+### Planned Payments
+
+```
+Get Planned Payments List
+GET   /api/planned-payments
+
+Create Planned Payment
+POST  /api/planned-payments
+Body: { title, amount, scheduledDate, category?, reminderDaysBefore?, notes? }
+
+Convert Planned Payment to Transaction
+POST  /api/planned-payments/:paymentId/convert
+
+Delete Planned Payment (soft)
+DELETE /api/planned-payments/:paymentId
+```
+
+---
+
+### Shopping Lists
+
+```
+Get Shopping Lists
+GET   /api/shopping-lists
+
+Create Shopping List
+POST  /api/shopping-lists
+Body: { name, store?, items[] }
+
+Update Shopping List / Add/Check Items
+PATCH /api/shopping-lists/:listId
+Body: { name?, store?, status?, items[] }
+
+Convert Checked Items to Transaction
+POST  /api/shopping-lists/:listId/convert
+
+Delete Shopping List (soft)
+DELETE /api/shopping-lists/:listId
+```
+
+---
+
+### Warranties
+
+```
+Get Warranties List
+GET   /api/warranties
+
+Create Warranty
+POST  /api/warranties
+Body: { productName, brand?, itemType?, purchaseDate, warrantyMonths, serialNumber?, notes?, receiptImageUrl?, reminderMonthsBefore? }
+
+Update Warranty
+PATCH /api/warranties/:warrantyId
+Body: { productName?, brand?, itemType?, purchaseDate?, warrantyMonths?, serialNumber?, notes?, receiptImageUrl?, reminderMonthsBefore? }
+
+Delete Warranty (soft)
+DELETE /api/warranties/:warrantyId
+```
+
+---
+
+### Tax & GST
+
+```
+Calculate Income Tax (AY 2025-26)
+POST  /api/tax/calculate
+Body: { age, basicSalary, hraReceived, specialAllowance, ltaReceived, rentPaid, metroCity, standardDeductionsOverride?, section80C?, section80D_self?, section80D_parents?, section80CCD_1B_nps?, interestHomeLoan?, otherIncome? }
+
+Calculate GST
+POST  /api/tax/gst
+Body: { amount, gstRate, isInclusive }
+```
+
