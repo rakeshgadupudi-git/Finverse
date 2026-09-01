@@ -109,12 +109,24 @@ function CardModal({ item, onClose, onSave }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={item ? 'Edit Card' : 'Add Loyalty Card'}>
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={item ? 'Edit Card' : 'Add Loyalty Card'}
+      style={{
+        /* Override center-align so tall modal is never cut off at the top */
+        alignItems: 'flex-start',
+        overflowY: 'auto',
+        padding: '24px 16px',
+      }}
+    >
       <motion.div
         className="modal"
         initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 520, padding: 0, display: 'flex', flexDirection: 'column', maxHeight: '92vh' }}
+        style={{ maxWidth: 520, padding: 0, display: 'flex', flexDirection: 'column', margin: '0 auto' }}
       >
         {/* Sticky header */}
         <div style={{
@@ -130,8 +142,8 @@ function CardModal({ item, onClose, onSave }) {
           <button onClick={onClose} aria-label="Close dialog" style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
         </div>
 
-        {/* Scrollable form body */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px', overflowY: 'auto', flex: 1 }}>
+        {/* Form body */}
+        <form onSubmit={handleSubmit} style={{ padding: '20px 24px' }}>
           {saveError && (
             <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontSize: 13, border: '1px solid rgba(239,68,68,0.25)' }}>
               {saveError}
