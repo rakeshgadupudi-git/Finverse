@@ -221,7 +221,7 @@ export default function TransactionsPage({ transactions, setTransactions, curren
       </div>
 
       {showAdd && (
-        <div className="glass-card fade-in" style={{ padding: 22, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 11 }}>
+        <div className="glass-card fade-in tx-add-form">
           {/* Description + Voice */}
           <div style={{ position: 'relative' }}>
             <input
@@ -342,7 +342,8 @@ export default function TransactionsPage({ transactions, setTransactions, curren
       </div>
 
       <div className="glass-card" style={{ overflow: 'hidden' }}>
-        <div className="table-row" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 60px', background: 'rgba(255,255,255,.02)', fontSize: 10.5, fontWeight: 700, letterSpacing: '1px', color: T.text.tertiary, textTransform: 'uppercase', borderBottom: `1px solid ${T.border.subtle}` }}>
+        {/* Desktop table header — hidden on mobile */}
+        <div className="table-row tx-table-header" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 60px', background: 'rgba(255,255,255,.02)', fontSize: 10.5, fontWeight: 700, letterSpacing: '1px', color: T.text.tertiary, textTransform: 'uppercase', borderBottom: `1px solid ${T.border.subtle}` }}>
           <span>Description</span>
           <span>Category</span>
           <span>Date</span>
@@ -350,16 +351,37 @@ export default function TransactionsPage({ transactions, setTransactions, curren
           <span />
         </div>
         {paginated.map((t) => (
-          <div key={t.id} className="table-row slide-in" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 60px', borderBottom: `1px solid ${T.border.subtle}` }}>
-            <span style={{ fontSize: 13, fontWeight: 500 }}>{t.description}</span>
-            <span><span className="tag" style={{ background: `${CAT_COLORS[t.category] || T.accent.purple}18`, color: CAT_COLORS[t.category] || T.accent.purple }}>{t.category}</span></span>
-            <span style={{ fontSize: 12, color: T.text.tertiary }}>{t.date}</span>
-            <span className="mono" style={{ textAlign: 'right', fontWeight: 600, color: ['income','salary','business'].includes(t.type) ? T.accent.teal : T.accent.danger }}>
-              {['income','salary','business'].includes(t.type) ? '+' : '-'}{fmt(t.amount, currency)}
-            </span>
-            <span style={{ textAlign: 'center' }}>
-              <button onClick={() => confirmDelete(t.id)} className="delete-btn" title="Delete transaction">✕</button>
-            </span>
+          <div key={t.id}>
+            {/* Desktop row — hidden on mobile */}
+            <div className="table-row tx-table-row slide-in" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr 60px', borderBottom: `1px solid ${T.border.subtle}` }}>
+              <span style={{ fontSize: 13, fontWeight: 500 }}>{t.description}</span>
+              <span><span className="tag" style={{ background: `${CAT_COLORS[t.category] || T.accent.purple}18`, color: CAT_COLORS[t.category] || T.accent.purple }}>{t.category}</span></span>
+              <span style={{ fontSize: 12, color: T.text.tertiary }}>{t.date}</span>
+              <span className="mono" style={{ textAlign: 'right', fontWeight: 600, color: ['income','salary','business'].includes(t.type) ? T.accent.teal : T.accent.danger }}>
+                {['income','salary','business'].includes(t.type) ? '+' : '-'}{fmt(t.amount, currency)}
+              </span>
+              <span style={{ textAlign: 'center' }}>
+                <button onClick={() => confirmDelete(t.id)} className="delete-btn" title="Delete transaction">✕</button>
+              </span>
+            </div>
+            {/* Mobile card — hidden on desktop */}
+            <div className="tx-mobile-card" style={{ borderBottom: `1px solid ${T.border.subtle}` }}>
+              <div className="tx-mobile-card-top">
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600, color: T.text.primary, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.description}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 5 }}>
+                    <span className="tag" style={{ background: `${CAT_COLORS[t.category] || T.accent.purple}18`, color: CAT_COLORS[t.category] || T.accent.purple, fontSize: 10 }}>{t.category}</span>
+                    <span style={{ fontSize: 11, color: T.text.tertiary }}>{t.date}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                  <span className="mono" style={{ fontWeight: 700, fontSize: 14, color: ['income','salary','business'].includes(t.type) ? T.accent.teal : T.accent.danger }}>
+                    {['income','salary','business'].includes(t.type) ? '+' : '-'}{fmt(t.amount, currency)}
+                  </span>
+                  <button onClick={() => confirmDelete(t.id)} className="delete-btn" title="Delete transaction">✕</button>
+                </div>
+              </div>
+            </div>
           </div>
         ))}
         {filtered.length === 0 && (

@@ -60,7 +60,26 @@ export default function ChatWindow() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [statusText, setStatusText] = useState('');
+  const [isMobile, setIsMobile] = useState(false);
   const scrollRef = useRef(null);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Prevent body scroll when chat is open on mobile
+  useEffect(() => {
+    if (isOpen && isMobile) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [isOpen, isMobile]);
 
   useEffect(() => {
     setMessages(getHistory());
@@ -134,12 +153,14 @@ export default function ChatWindow() {
           onClick={() => setIsOpen(true)}
           className="finchat-toggle"
           style={{
-            position: 'fixed', bottom: 30, right: 30,
-            width: 60, height: 60, borderRadius: '50%',
+            position: 'fixed',
+            bottom: isMobile ? 76 : 30,
+            right: 30,
+            width: 56, height: 56, borderRadius: '50%',
             background: 'linear-gradient(135deg, #00d4aa, #9d77f7)',
             border: 'none', boxShadow: '0 8px 32px rgba(0,212,170,0.3)',
             cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'white', fontSize: 24, zIndex: 1000,
+            color: 'white', fontSize: 22, zIndex: 1000,
             transition: 'transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.1) rotate(5deg)'; }}
@@ -154,14 +175,27 @@ export default function ChatWindow() {
         <div
           className="finchat-window"
           style={{
-            position: 'fixed', bottom: 30, right: 30,
-            width: 420, height: 650,
-            background: 'rgba(21, 23, 30, 0.95)',
-            backdropFilter: 'blur(20px)', borderRadius: 24,
+            position: 'fixed',
+            ...(isMobile ? {
+              inset: 0,
+              bottom: 64,
+              width: '100%',
+              height: 'auto',
+              borderRadius: '0',
+              right: 0,
+            } : {
+              bottom: 30,
+              right: 30,
+              width: 420,
+              height: 650,
+              borderRadius: 24,
+            }),
+            background: 'rgba(21, 23, 30, 0.98)',
+            backdropFilter: 'blur(20px)',
             border: '1px solid rgba(255,255,255,0.08)',
             boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
             display: 'flex', flexDirection: 'column',
-            zIndex: 1001, overflow: 'hidden',
+            zIndex: 1100, overflow: 'hidden',
             animation: 'finchat-slide-up 0.4s cubic-bezier(0.23, 1, 0.32, 1)',
           }}
         >

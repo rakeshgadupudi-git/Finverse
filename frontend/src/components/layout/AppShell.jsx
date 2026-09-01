@@ -77,6 +77,14 @@ const NAV_GROUPS = [
   },
 ];
 
+// Bottom nav items — 4 main destinations always visible on mobile
+const BOTTOM_NAV_ITEMS = [
+  { id: 'dashboard',    icon: '◈', label: 'Home' },
+  { id: 'transactions', icon: '↔', label: 'Txns' },
+  { id: 'portfolio',    icon: '◎', label: 'Portfolio' },
+  { id: 'goals',        icon: '◉', label: 'Goals' },
+];
+
 
 function TickerBar() {
   const [tickers, setTickers] = useState(MOCK_TICKERS);
@@ -135,7 +143,7 @@ function ToastContainer() {
 
 }
 
-function GroupedNav({ page, setPage }) {
+function GroupedNav({ page, setPage, onNavClick }) {
   const [openGroups, setOpenGroups] = useState(() => {
     const result = {};
     NAV_GROUPS.forEach((g) => { result[g.label] = g.defaultOpen !== false; });
@@ -144,6 +152,11 @@ function GroupedNav({ page, setPage }) {
 
   const toggleGroup = (label) => {
     setOpenGroups((prev) => ({ ...prev, [label]: !prev[label] }));
+  };
+
+  const handleNavClick = (id) => {
+    setPage(id);
+    if (onNavClick) onNavClick();
   };
 
   return (
@@ -164,7 +177,7 @@ function GroupedNav({ page, setPage }) {
             {(!group.collapsible || isOpen) && group.items.map((item) => (
               <button
                 key={item.id}
-                onClick={() => setPage(item.id)}
+                onClick={() => handleNavClick(item.id)}
                 className={`nav-btn${item.sub ? ' nav-sub-btn' : ''}${page === item.id ? ' active' : ''}`}
               >
                 <span className="nav-icon" style={{ opacity: page === item.id ? 1 : 0.55 }}>{item.icon}</span>
@@ -184,12 +197,38 @@ function AppShellInner({ currency, setCurrency, userName = 'User', setUserName, 
   const [txLoading, setTxLoading] = useState(true);
   const [accounts, setAccounts] = useState([]);
   const [open, setOpen] = useState(isMarketOpen());
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const id = setInterval(() => setOpen(isMarketOpen()), 60000);
     return () => clearInterval(id);
   }, []);
+
+  // Close sidebar on route change (mobile)
+  const handleSetPage = (id) => {
+    setPage(id);
+    setSidebarOpen(false);
+  };
+
+  // Close sidebar on Escape key
+  useEffect(() => {
+    const handler = (e) => {
+      if (e.key === 'Escape') setSidebarOpen(false);
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
+
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
 
   // Load transactions from backend on mount
   useEffect(() => {
@@ -219,7 +258,7 @@ function AppShellInner({ currency, setCurrency, userName = 'User', setUserName, 
   }, [transactions, txLoading]);
 
   const pages = {
-    dashboard:   <DashboardPage transactions={transactions} currency={currency} navigate={setPage} userName={userName} accounts={accounts} />,
+    dashboard:   <DashboardPage transactions={transactions} currency={currency} navigate={handleSetPage} userName={userName} accounts={accounts} />,
     transactions: <TransactionsPage transactions={transactions} setTransactions={setTransactions} currency={currency} loading={txLoading} />,
     portfolio:   <PortfolioPage currency={currency} />,
     goals:       <GoalsPage currency={currency} />,
@@ -241,48 +280,107 @@ function AppShellInner({ currency, setCurrency, userName = 'User', setUserName, 
 
   return (
     <div style={{ background: 'var(--bg-base)', minHeight: '100vh', color: 'var(--text-primary)', fontFamily: "'Manrope',sans-serif" }}>
-            <aside className="sidebar">
-                <div className="sidebar-logo">
-                    <div className="logo-text">Fin<span className="logo-accent">Tracker</span> <span style={{ fontSize: 14, color: T.accent.purple }}>AI</span></div>
-                    <div style={{ marginTop: 8 }}>
-                        <div className={`market-status ${open ? 'open' : 'closed'}`}>
-                            <div className={`market-dot ${open ? 'open' : 'closed'}`} />
-                            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.8px', color: open ? T.accent.teal : T.text.tertiary, textTransform: 'uppercase' }}>
-                                {open ? 'Market Open' : 'Market Closed'}
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <nav className="sidebar-nav">
-                    <GroupedNav page={page} setPage={setPage} />
-                </nav>
-                <div className="sidebar-footer">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
-                        <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, background: 'linear-gradient(135deg,var(--surface-teal),var(--surface-purple))', border: '1px solid var(--surface-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--teal)', fontFamily: "'Fraunces',serif" }}>{userName.charAt(0).toUpperCase()}</div>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 12.5, color: T.text.primary, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
-                            <div style={{ fontSize: 10.5, color: T.text.tertiary, marginTop: 1 }}>Pro · NSE/BSE</div>
-                        </div>
-                        <button
-                            onClick={toggleTheme}
-                            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 15, padding: '4px', flexShrink: 0, lineHeight: 1 }}>
-                            {theme === 'dark' ? '☀' : '🌙'}
-                        </button>
-                        {onLogout && <button onClick={onLogout} title="Logout" style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 16, padding: '4px', flexShrink: 0, lineHeight: 1 }}>⏻</button>}
-                    </div>
-                </div>
-            </aside>
 
-            <div className="app-shell">
-                <TickerBar />
-                <main className="main-content">
-                    {pages[page]}
-                </main>
-            </div>
+      {/* ── Sidebar overlay (mobile only) ── */}
+      {sidebarOpen && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+          aria-label="Close menu"
+        />
+      )}
 
-            <ToastContainer />
-        </div>);
+      {/* ── Sidebar ── */}
+      <aside className={`sidebar${sidebarOpen ? ' sidebar-open' : ''}`}>
+          <div className="sidebar-logo">
+              <div className="logo-text">Fin<span className="logo-accent">Tracker</span> <span style={{ fontSize: 14, color: T.accent.purple }}>AI</span></div>
+              <div style={{ marginTop: 8 }}>
+                  <div className={`market-status ${open ? 'open' : 'closed'}`}>
+                      <div className={`market-dot ${open ? 'open' : 'closed'}`} />
+                      <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.8px', color: open ? T.accent.teal : T.text.tertiary, textTransform: 'uppercase' }}>
+                          {open ? 'Market Open' : 'Market Closed'}
+                      </span>
+                  </div>
+              </div>
+          </div>
+          <nav className="sidebar-nav">
+              <GroupedNav page={page} setPage={setPage} onNavClick={() => setSidebarOpen(false)} />
+          </nav>
+          <div className="sidebar-footer">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+                  <div style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 9, background: 'linear-gradient(135deg,var(--surface-teal),var(--surface-purple))', border: '1px solid var(--surface-teal)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'var(--teal)', fontFamily: "'Fraunces',serif" }}>{userName.charAt(0).toUpperCase()}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, color: T.text.primary, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userName}</div>
+                      <div style={{ fontSize: 10.5, color: T.text.tertiary, marginTop: 1 }}>Pro · NSE/BSE</div>
+                  </div>
+                  <button
+                      onClick={toggleTheme}
+                      title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 15, padding: '4px', flexShrink: 0, lineHeight: 1 }}>
+                      {theme === 'dark' ? '☀' : '🌙'}
+                  </button>
+                  {onLogout && <button onClick={onLogout} title="Logout" style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 16, padding: '4px', flexShrink: 0, lineHeight: 1 }}>⏻</button>}
+              </div>
+          </div>
+      </aside>
+
+      {/* ── Mobile top header ── */}
+      <header className="mobile-header">
+        <button
+          className="mobile-menu-btn"
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open navigation menu"
+        >
+          <span className="mobile-menu-icon">
+            <span />
+            <span />
+            <span />
+          </span>
+        </button>
+        <div className="mobile-header-logo">
+          Fin<span style={{ color: 'var(--teal)', fontStyle: 'italic' }}>Tracker</span>
+          <span style={{ fontSize: 11, color: T.accent.purple, marginLeft: 4 }}>AI</span>
+        </div>
+        <button
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 18, padding: '4px', lineHeight: 1 }}
+        >
+          {theme === 'dark' ? '☀' : '🌙'}
+        </button>
+      </header>
+
+      <div className="app-shell">
+          <TickerBar />
+          <main className="main-content">
+              {pages[page]}
+          </main>
+      </div>
+
+      {/* ── Mobile bottom tab bar ── */}
+      <nav className="mobile-bottom-nav" aria-label="Main navigation">
+        {BOTTOM_NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            className={`mobile-bottom-nav-item${page === item.id ? ' active' : ''}`}
+            onClick={() => setPage(item.id)}
+          >
+            <span className="mobile-bottom-nav-icon">{item.icon}</span>
+            <span className="mobile-bottom-nav-label">{item.label}</span>
+          </button>
+        ))}
+        {/* Settings shortcut */}
+        <button
+          className={`mobile-bottom-nav-item${page === 'settings' ? ' active' : ''}`}
+          onClick={() => setPage('settings')}
+        >
+          <span className="mobile-bottom-nav-icon">⚙</span>
+          <span className="mobile-bottom-nav-label">Settings</span>
+        </button>
+      </nav>
+
+      <ToastContainer />
+    </div>);
 
 }
 

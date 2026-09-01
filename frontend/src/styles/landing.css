@@ -1083,3 +1083,35 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── 480px: Small phones ─────────────────────────────── */
+@media (max-width: 480px) {
+  .landing-nav {
+    padding: 14px 16px;
+  }
+
+  .landing-hero-title {
+    font-size: 36px;
+    letter-spacing: -1.5px;
+  }
+
+  .landing-hero-sub {
+    font-size: 15px;
+  }
+
+  .landing-auth-card,
+  .auth-card {
+    padding: 24px 18px;
+    border-radius: 16px;
+  }
+
+  .landing-features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-hero-cta-group {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+}
