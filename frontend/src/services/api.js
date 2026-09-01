@@ -18,7 +18,15 @@ const authPost = async (path, body) => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) {
+      throw new Error(`Backend service unreachable (HTTP ${res.status}). Please check your Render Auth Service URL in vercel.json.`);
+    }
+    throw err;
+  }
   if (!res.ok) throw new Error(data.message || 'Something went wrong');
   return data;
 };
@@ -86,7 +94,15 @@ const authFetch = async (url, method = 'GET', body = null) => {
     }
   }
 
-  const data = await res.json();
+  let data;
+  try {
+    data = await res.json();
+  } catch (err) {
+    if (!res.ok) {
+      throw new Error(`Backend service unreachable (HTTP ${res.status}). Please check your Render API Service URL in vercel.json.`);
+    }
+    throw err;
+  }
   if (!res.ok) throw new Error(data.message || 'Something went wrong');
   return data;
 };
