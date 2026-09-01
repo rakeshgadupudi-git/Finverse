@@ -78,8 +78,8 @@ Vercel is optimal for hosting static React apps built with Vite.
 3. **Configure Rewrite Proxies (`vercel.json`):**
    * We have pre-configured [vercel.json](file:///d:/IIIT%20Dharwad/FS_Project/frontend/vercel.json) in your `frontend` workspace folder.
    * Edit [vercel.json](file:///d:/IIIT%20Dharwad/FS_Project/frontend/vercel.json) to replace the placeholder destination URLs with your actual Render Web Service URLs:
-     * Replace `https://fintracker-auth.onrender.com` with your **Auth Service** URL on Render.
-     * Replace `https://fintracker-api.onrender.com` with your **Core API Service** URL on Render.
+     * Replace `https://fintracker-auth-service.onrender.com` with your **Auth Service** URL on Render.
+     * Replace `https://fintracker-api-service.onrender.com` with your **Core API Service** URL on Render.
    * Commit and push this change to GitHub. Vercel will pick it up and run your proxy routes seamlessly.
 4. **Deploy:** Click **Deploy**. Vercel will compile and host your frontend.
 
