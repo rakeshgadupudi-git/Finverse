@@ -1,4 +1,5 @@
 {
+  "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/auth/:path*", "destination": "https://fintracker-auth.onrender.com/api/auth/:path*" },
     { "source": "/api/user/:path*", "destination": "https://fintracker-auth.onrender.com/api/user/:path*" },
