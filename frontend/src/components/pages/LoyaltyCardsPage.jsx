@@ -92,7 +92,7 @@ function CardModal({ item, onClose, onSave }) {
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 500 }}
+        style={{ maxWidth: 520 }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{item ? 'Edit Card' : 'Add Loyalty Card'}</h3>
@@ -100,14 +100,20 @@ function CardModal({ item, onClose, onSave }) {
         </div>
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gap: 14 }}>
-            <div>
-              <label className="form-label">Card Name *</label>
-              <input className="input-field" value={form.cardName} onChange={(e) => set('cardName', e.target.value)} placeholder="e.g. Reliance One" required />
+
+            {/* Row 1: Card Name + Issuer */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label className="form-label">Card Name *</label>
+                <input className="input-field" value={form.cardName} onChange={(e) => set('cardName', e.target.value)} placeholder="e.g. Reliance One" required />
+              </div>
+              <div>
+                <label className="form-label">Issuer / Brand</label>
+                <input className="input-field" value={form.issuer} onChange={(e) => set('issuer', e.target.value)} placeholder="e.g. Reliance Retail" />
+              </div>
             </div>
-            <div>
-              <label className="form-label">Issuer / Brand</label>
-              <input className="input-field" value={form.issuer} onChange={(e) => set('issuer', e.target.value)} placeholder="e.g. Reliance Retail" />
-            </div>
+
+            {/* Row 2: Card Type (full width chip group) */}
             <div>
               <label className="form-label">Card Type</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -116,14 +122,20 @@ function CardModal({ item, onClose, onSave }) {
                 ))}
               </div>
             </div>
-            <div>
-              <label className="form-label">Card Number / Membership ID</label>
-              <input className="input-field" value={form.cardNumber} onChange={(e) => { set('cardNumber', e.target.value); if (!form.barcodeValue) set('barcodeValue', e.target.value); }} placeholder="e.g. 1234567890" />
+
+            {/* Row 3: Card Number + Barcode Value */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div>
+                <label className="form-label">Card Number / Member ID</label>
+                <input className="input-field" value={form.cardNumber} onChange={(e) => { set('cardNumber', e.target.value); if (!form.barcodeValue) set('barcodeValue', e.target.value); }} placeholder="e.g. 1234567890" />
+              </div>
+              <div>
+                <label className="form-label">Barcode Value</label>
+                <input className="input-field" value={form.barcodeValue} onChange={(e) => set('barcodeValue', e.target.value)} placeholder="Leave blank = card number" />
+              </div>
             </div>
-            <div>
-              <label className="form-label">Barcode Value (if different from card number)</label>
-              <input className="input-field" value={form.barcodeValue} onChange={(e) => set('barcodeValue', e.target.value)} placeholder="Leave blank to use card number" />
-            </div>
+
+            {/* Row 4: Barcode Type (full width chip group) */}
             <div>
               <label className="form-label">Barcode Type</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -132,27 +144,35 @@ function CardModal({ item, onClose, onSave }) {
                 ))}
               </div>
             </div>
-            <div>
-              <label className="form-label">Expiry Date (optional)</label>
-              <input className="input-field" type="date" value={form.expiryDate} onChange={(e) => set('expiryDate', e.target.value)} />
-            </div>
-            <div>
-              <label className="form-label">Card Color</label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                {ACCENT_COLORS.map((c) => (
-                  <button key={c} type="button" onClick={() => set('color', c)} style={{
-                    width: 28, height: 28, borderRadius: '50%', background: c, border: `3px solid ${form.color === c ? '#fff' : 'transparent'}`,
-                    cursor: 'pointer', transition: 'border 0.15s',
-                  }} />
-                ))}
-                <input type="color" value={form.color} onChange={(e) => set('color', e.target.value)}
-                  style={{ width: 28, height: 28, border: 'none', borderRadius: '50%', cursor: 'pointer', background: 'none', padding: 0 }} />
+
+            {/* Row 5: Expiry Date + Card Color */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, alignItems: 'start' }}>
+              <div>
+                <label className="form-label">Expiry Date (optional)</label>
+                <input className="input-field" type="date" value={form.expiryDate} onChange={(e) => set('expiryDate', e.target.value)} />
+              </div>
+              <div>
+                <label className="form-label">Card Color</label>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', paddingTop: 4 }}>
+                  {ACCENT_COLORS.map((c) => (
+                    <button key={c} type="button" onClick={() => set('color', c)} style={{
+                      width: 26, height: 26, borderRadius: '50%', background: c,
+                      border: `3px solid ${form.color === c ? '#fff' : 'transparent'}`,
+                      cursor: 'pointer', transition: 'border 0.15s',
+                    }} />
+                  ))}
+                  <input type="color" value={form.color} onChange={(e) => set('color', e.target.value)}
+                    style={{ width: 26, height: 26, border: 'none', borderRadius: '50%', cursor: 'pointer', background: 'none', padding: 0 }} />
+                </div>
               </div>
             </div>
+
+            {/* Row 6: Notes (full width) */}
             <div>
               <label className="form-label">Notes</label>
               <textarea className="input-field" value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} placeholder="Optional" style={{ resize: 'vertical' }} />
             </div>
+
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'flex-end' }}>
             <button type="button" className="secondary-btn" onClick={onClose}>Cancel</button>
