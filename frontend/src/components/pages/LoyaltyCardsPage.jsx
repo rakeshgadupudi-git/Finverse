@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { T } from '@/lib/tokens';
 import { loyaltyCardApi } from '@/services/api';
@@ -8,12 +8,65 @@ import { useSettings } from '@/context/SettingsContext';
 const CARD_TYPES = ['Loyalty', 'Credit', 'Debit', 'Membership', 'Gift', 'Other'];
 const BARCODE_TYPES = ['CODE128', 'EAN13', 'QR', 'NONE'];
 const ACCENT_COLORS = ['#00d4aa', '#9d77f7', '#f5c842', '#f97316', '#3b82f6', '#ef4444', '#ec4899', '#10b981'];
+const FILTER_ALL = 'All';
+
+const TYPE_ICONS = {
+  Loyalty: '🎯',
+  Credit: '💳',
+  Debit: '🏧',
+  Membership: '🪪',
+  Gift: '🎁',
+  Other: '🏷️',
+};
 
 const EMPTY_FORM = {
   cardName: '', issuer: '', cardType: 'Loyalty',
   cardNumber: '', barcodeValue: '', barcodeType: 'CODE128',
   expiryDate: '', color: '#00d4aa', notes: '',
 };
+
+/* ── helpers ──────────────────────────────────────────────────── */
+function getCardStatus(card) {
+  if (!card.expiryDate) return 'active';
+  const now = new Date();
+  now.setHours(23, 59, 59, 999);
+  const exp = new Date(card.expiryDate);
+  if (exp < now) return 'expired';
+  const diff = exp - new Date();
+  const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
+  if (daysLeft <= 30) return 'expiring-soon';
+  return 'active';
+}
+
+function getStatusLabel(status) {
+  switch (status) {
+    case 'expired': return 'Expired';
+    case 'expiring-soon': return 'Expiring Soon';
+    default: return 'Active';
+  }
+}
+
+function getStatusColor(status) {
+  switch (status) {
+    case 'expired': return T.accent.danger;
+    case 'expiring-soon': return T.accent.gold;
+    default: return T.accent.teal;
+  }
+}
+
+function getStatusBg(status) {
+  switch (status) {
+    case 'expired': return 'var(--surface-danger)';
+    case 'expiring-soon': return 'var(--surface-gold)';
+    default: return 'var(--surface-teal)';
+  }
+}
+
+function formatCardNumber(num) {
+  if (!num) return '••••';
+  if (num.length <= 8) return num;
+  return num.slice(0, 4) + ' •••• ' + num.slice(-4);
+}
 
 /* ── Body scroll lock ─────────────────────────────────────────── */
 function useScrollLock(active) {
@@ -32,7 +85,6 @@ function BarcodeDisplay({ value, type }) {
 
   useEffect(() => {
     if (type !== 'QR' || !value || !canvasRef.current) return;
-    /* Draw value as readable text on canvas — scannable QR requires qrcode pkg */
     const canvas = canvasRef.current;
     canvas.width = 200; canvas.height = 60;
     const ctx = canvas.getContext('2d');
@@ -77,6 +129,33 @@ function BarcodeDisplay({ value, type }) {
   );
 }
 
+/* ── Skeleton loader ──────────────────────────────────────────── */
+function SkeletonCard() {
+  return (
+    <div className="glass-card" style={{ padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 38, height: 38, borderRadius: 10, background: 'var(--surface-invert)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          <div>
+            <div style={{ width: 120, height: 14, borderRadius: 6, background: 'var(--surface-invert)', marginBottom: 6, animation: 'pulse 1.5s ease-in-out infinite' }} />
+            <div style={{ width: 80, height: 10, borderRadius: 4, background: 'var(--surface-invert)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+          </div>
+        </div>
+        <div style={{ width: 52, height: 20, borderRadius: 10, background: 'var(--surface-invert)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+      </div>
+      <div style={{ width: 160, height: 12, borderRadius: 4, background: 'var(--surface-invert)', marginBottom: 14, animation: 'pulse 1.5s ease-in-out infinite' }} />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <div style={{ height: 36, borderRadius: 6, background: 'var(--surface-invert)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+        <div style={{ height: 36, borderRadius: 6, background: 'var(--surface-invert)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ flex: 1, height: 34, borderRadius: 10, background: 'var(--surface-invert)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+        <div style={{ flex: 1, height: 34, borderRadius: 10, background: 'var(--surface-invert)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+      </div>
+    </div>
+  );
+}
+
 /* ── Add / Edit card modal ────────────────────────────────────── */
 function CardModal({ item, onClose, onSave }) {
   const [form, setForm] = useState(item ? {
@@ -108,54 +187,43 @@ function CardModal({ item, onClose, onSave }) {
     if (!ok) setSaveError('Failed to save. Please try again.');
   };
 
+  const COLOR_LABELS = {
+    '#00d4aa': 'Teal',
+    '#9d77f7': 'Purple',
+    '#f5c842': 'Gold',
+    '#f97316': 'Orange',
+    '#3b82f6': 'Blue',
+    '#ef4444': 'Red',
+    '#ec4899': 'Pink',
+    '#10b981': 'Green',
+  };
+
   return (
-    <div
-      className="modal-overlay"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-label={item ? 'Edit Card' : 'Add Loyalty Card'}
-      style={{
-        /* Override center-align so tall modal is never cut off at the top */
-        alignItems: 'flex-start',
-        overflowY: 'auto',
-        padding: '24px 16px',
-      }}
-    >
+    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label={item ? 'Edit Card' : 'Add Loyalty Card'}>
       <motion.div
         className="modal"
         initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: 520, padding: 0, display: 'flex', flexDirection: 'column', margin: '0 auto' }}
+        style={{ maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}
       >
-        {/* Sticky header */}
+        {/* Sticky header — matches AccountsPage pattern */}
         <div style={{
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '20px 24px 16px', flexShrink: 0,
-          borderBottom: '1px solid var(--border-subtle)',
-          borderRadius: '20px 20px 0 0',
-          background: 'var(--bg-elevated, #111827)',
+          marginBottom: 20, position: 'sticky', top: 0,
+          background: 'var(--bg-elevated, #111827)', zIndex: 1,
+          paddingBottom: 14, borderBottom: '1px solid var(--border-subtle)',
         }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-            {item ? 'Edit Card' : 'Add Loyalty Card'}
-          </h3>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{item ? 'Edit Card' : 'Add Loyalty Card'}</h3>
           <button onClick={onClose} aria-label="Close dialog" style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 20, lineHeight: 1, padding: 4 }}>✕</button>
         </div>
 
-        {/* Form body */}
-        <form onSubmit={handleSubmit} style={{ padding: '20px 24px' }}>
+        <form onSubmit={handleSubmit}>
           {saveError && (
-            <div style={{ marginBottom: 14, padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontSize: 13, border: '1px solid rgba(239,68,68,0.25)' }}>
+            <div className="modal-error">
               {saveError}
             </div>
           )}
 
-          {/*
-            MASTER GRID: single 2-col grid as the form root.
-            All left-col fields share one X-axis; all right-col share another.
-            Full-width rows: gridColumn '1 / -1'.
-            CSS class handles ≤520px → single column.
-          */}
           <div className="loyalty-form-grid">
 
             {/* Card Name (col 1) */}
@@ -175,7 +243,9 @@ function CardModal({ item, onClose, onSave }) {
               <label className="form-label" style={{ display: 'block', marginBottom: 8 }}>Card Type</label>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 {CARD_TYPES.map((t) => (
-                  <button key={t} type="button" className={`radio-chip${form.cardType === t ? ' active' : ''}`} onClick={() => set('cardType', t)}>{t}</button>
+                  <button key={t} type="button" className={`radio-chip${form.cardType === t ? ' active' : ''}`} onClick={() => set('cardType', t)}>
+                    {TYPE_ICONS[t]} {t}
+                  </button>
                 ))}
               </div>
             </div>
@@ -208,19 +278,21 @@ function CardModal({ item, onClose, onSave }) {
               <input className="input-field" type="date" value={form.expiryDate} onChange={(e) => set('expiryDate', e.target.value)} />
             </div>
 
-            {/* Card Color (col 2) — flexWrap:wrap prevents overflow */}
+            {/* Card Color (col 2) */}
             <div>
               <label className="form-label" style={{ display: 'block', marginBottom: 6 }}>Card Color</label>
               <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', minHeight: 38 }}>
                 {ACCENT_COLORS.map((c) => (
-                  <button key={c} type="button" aria-label={`Color ${c}`} onClick={() => set('color', c)} style={{
-                    width: 24, height: 24, borderRadius: '50%', background: c, flexShrink: 0,
-                    border: `3px solid ${form.color === c ? '#fff' : 'transparent'}`,
-                    cursor: 'pointer', transition: 'border-color 0.15s', padding: 0,
+                  <button key={c} type="button" aria-label={COLOR_LABELS[c] || c} onClick={() => set('color', c)} style={{
+                    width: 26, height: 26, borderRadius: '50%', background: c, flexShrink: 0,
+                    border: form.color === c ? '3px solid var(--text-primary)' : '3px solid transparent',
+                    cursor: 'pointer', transition: 'border-color 0.15s, transform 0.15s', padding: 0,
+                    transform: form.color === c ? 'scale(1.15)' : 'scale(1)',
+                    boxShadow: form.color === c ? `0 0 0 2px ${c}40` : 'none',
                   }} />
                 ))}
-                <input type="color" aria-label="Custom color" value={form.color} onChange={(e) => set('color', e.target.value)}
-                  style={{ width: 24, height: 24, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer', background: 'none', flexShrink: 0 }} />
+                <input type="color" aria-label="Pick a custom color" value={form.color} onChange={(e) => set('color', e.target.value)}
+                  style={{ width: 26, height: 26, borderRadius: '50%', border: 'none', padding: 0, cursor: 'pointer', background: 'none', flexShrink: 0 }} />
               </div>
             </div>
 
@@ -230,22 +302,16 @@ function CardModal({ item, onClose, onSave }) {
               <textarea className="input-field" value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} placeholder="Optional" style={{ resize: 'vertical', width: '100%', boxSizing: 'border-box' }} />
             </div>
 
-          </div>{/* end master grid */}
-        </form>
+          </div>
 
-        {/* Sticky footer — always visible */}
-        <div style={{
-          display: 'flex', gap: 10, justifyContent: 'flex-end',
-          padding: '14px 24px 20px', flexShrink: 0,
-          borderTop: '1px solid var(--border-subtle)',
-          background: 'var(--bg-elevated, #111827)',
-          borderRadius: '0 0 20px 20px',
-        }}>
-          <button type="button" className="secondary-btn" onClick={onClose}>Cancel</button>
-          <button type="button" className="primary-btn" disabled={saving} onClick={handleSubmit}>
-            {saving ? 'Saving…' : item ? 'Save Changes' : 'Add Card'}
-          </button>
-        </div>
+          {/* Buttons */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 22, justifyContent: 'flex-end' }}>
+            <button type="button" className="secondary-btn" onClick={onClose}>Cancel</button>
+            <button type="submit" className="primary-btn" disabled={saving}>
+              {saving ? 'Saving…' : item ? 'Save Changes' : 'Add Card'}
+            </button>
+          </div>
+        </form>
       </motion.div>
     </div>
   );
@@ -270,19 +336,27 @@ function BarcodeModal({ card, onClose }) {
     <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true" aria-label="Barcode viewer">
       <motion.div className="modal" initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 420 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.cardName}</div>
-            {card.issuer && <div style={{ fontSize: 12, color: T.text.tertiary }}>{card.issuer}</div>}
+          <div style={{ minWidth: 0, flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, background: 'var(--surface-invert)', border: `2px solid ${card.color}60`,
+            }}>
+              {TYPE_ICONS[card.cardType] || '🏷️'}
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.cardName}</div>
+              {card.issuer && <div style={{ fontSize: 12, color: T.text.tertiary }}>{card.issuer}</div>}
+            </div>
           </div>
           <button onClick={onClose} aria-label="Close dialog" style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 20, flexShrink: 0, marginLeft: 12 }}>✕</button>
         </div>
-        <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: 16, marginBottom: 16, border: '1px solid rgba(255,255,255,0.08)', overflowX: 'auto' }}>
+        <div style={{ background: 'var(--bg-card)', borderRadius: 12, padding: 16, marginBottom: 16, border: '1px solid var(--border-subtle)', overflowX: 'auto' }}>
           <BarcodeDisplay value={barcodeVal} type={card.barcodeType} />
         </div>
         {barcodeVal && (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: T.text.secondary, marginBottom: 10, wordBreak: 'break-all' }}>{barcodeVal}</div>
-            <button className="secondary-btn" onClick={copy}>{copied ? '✓ Copied!' : '⎘ Copy Number'}</button>
+            <button className="secondary-btn" onClick={copy} style={{ minWidth: 140 }}>{copied ? '✓ Copied!' : '⎘ Copy Number'}</button>
           </div>
         )}
       </motion.div>
@@ -312,51 +386,139 @@ function ConfirmModal({ message, onConfirm, onCancel }) {
   );
 }
 
-/* ── Physical card component ──────────────────────────────────── */
-function PhysicalCard({ card, onEdit, onDelete, onShowBarcode }) {
-  const lastFour = card.cardNumber ? card.cardNumber.slice(-4).padStart(4, '•') : '••••';
-  /* Fix: use end-of-day so today's cards aren't immediately marked expired */
-  const isExpired = card.expiryDate && (() => {
-    const eod = new Date(); eod.setHours(23, 59, 59, 999);
-    return new Date(card.expiryDate) < eod;
-  })();
+/* ── Loyalty card component (glass-card pattern) ──────────────── */
+function LoyaltyCard({ card, onEdit, onDelete, onShowBarcode }) {
+  const status = getCardStatus(card);
+  const statusColor = getStatusColor(status);
+  const isExpired = status === 'expired';
 
   return (
-    <motion.div layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-      style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-      <div style={{ background: `linear-gradient(135deg, ${card.color}, ${card.color}99)`, padding: '18px 20px 14px', minHeight: 100 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', fontFamily: "'Fraunces', serif", textShadow: '0 1px 4px rgba(0,0,0,0.3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="glass-card"
+      style={{
+        padding: 18,
+        borderLeft: `3px solid ${card.color}`,
+        opacity: isExpired ? 0.72 : 1,
+        transition: 'opacity 0.2s, border-color 0.2s',
+      }}
+    >
+      {/* Top row: icon + name + badge */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+            background: 'var(--surface-invert)', border: `2px solid ${card.color}60`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20,
+          }}>
+            {TYPE_ICONS[card.cardType] || '🏷️'}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontWeight: 700, fontSize: 15,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
               {card.cardName}
             </div>
-            {card.issuer && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{card.issuer}</div>}
+            {card.issuer && (
+              <div style={{ fontSize: 12, color: T.text.tertiary, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {card.issuer}
+              </div>
+            )}
           </div>
-          <span style={{ fontSize: 9, fontWeight: 700, background: 'rgba(255,255,255,0.2)', color: '#fff', padding: '3px 8px', borderRadius: 10, textTransform: 'uppercase', letterSpacing: '0.5px', flexShrink: 0, whiteSpace: 'nowrap' }}>
-            {card.cardType}
+        </div>
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, flexShrink: 0,
+          background: `${card.color}18`, border: `1px solid ${card.color}50`,
+          color: card.color, whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.5px',
+        }}>
+          {card.cardType}
+        </span>
+      </div>
+
+      {/* Card Number */}
+      {card.cardNumber && (
+        <div style={{
+          fontSize: 13, fontFamily: 'var(--font-mono)', color: T.text.secondary,
+          letterSpacing: '1.5px', marginBottom: 12,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {formatCardNumber(card.cardNumber)}
+        </div>
+      )}
+
+      {/* Info grid: Expiry + Status */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+        <div>
+          <div style={{ fontSize: 10, color: T.text.tertiary, textTransform: 'uppercase', marginBottom: 2 }}>
+            {card.expiryDate ? 'Expires' : 'Expiry'}
+          </div>
+          <div style={{ fontSize: 13, fontWeight: 600, fontFamily: 'var(--font-mono)', color: isExpired ? T.accent.danger : T.text.primary }}>
+            {card.expiryDate
+              ? new Date(card.expiryDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: '2-digit' })
+              : '—'}
+          </div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: T.text.tertiary, textTransform: 'uppercase', marginBottom: 2 }}>Status</div>
+          <span style={{
+            display: 'inline-block',
+            fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+            background: getStatusBg(status), color: statusColor,
+            textTransform: 'uppercase', letterSpacing: '0.5px',
+          }}>
+            {getStatusLabel(status)}
           </span>
         </div>
-        <div style={{ marginTop: 16, fontFamily: 'var(--font-mono)', fontSize: 13, color: 'rgba(255,255,255,0.9)', letterSpacing: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          •••• •••• •••• {lastFour}
-        </div>
       </div>
-      <div style={{ background: 'var(--bg-elevated)', padding: '12px 16px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          {card.expiryDate ? (
-            <div>
-              <div style={{ fontSize: 9, color: T.text.tertiary, textTransform: 'uppercase' }}>Expires</div>
-              <div style={{ fontSize: 12, fontFamily: 'var(--font-mono)', color: isExpired ? T.accent.danger : T.text.primary, fontWeight: 600 }}>
-                {new Date(card.expiryDate).toLocaleDateString('en-IN', { month: '2-digit', year: '2-digit' })}
-                {isExpired && ' (Expired)'}
-              </div>
-            </div>
-          ) : <div />}
-          <button onClick={() => onShowBarcode(card)} className="radio-chip" style={{ fontSize: 11, padding: '4px 10px' }}>▣ Barcode</button>
+
+      {/* Notes preview */}
+      {card.notes && (
+        <div style={{
+          fontSize: 12, color: T.text.secondary, fontStyle: 'italic',
+          marginBottom: 12, lineHeight: 1.4,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {card.notes}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button className="secondary-btn" style={{ flex: 1, fontSize: 11 }} onClick={() => onEdit(card)}>Edit</button>
-          <button className="danger-btn" style={{ flex: 1, fontSize: 11 }} onClick={() => onDelete(card._id)}>Delete</button>
-        </div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button
+          className="secondary-btn"
+          style={{ flex: 1, fontSize: 12 }}
+          onClick={() => onShowBarcode(card)}
+          aria-label={`View barcode for ${card.cardName}`}
+        >
+          ▣ Barcode
+        </button>
+        <button
+          className="secondary-btn"
+          style={{ flex: 1, fontSize: 12 }}
+          onClick={() => onEdit(card)}
+          aria-label={`Edit ${card.cardName}`}
+        >
+          Edit
+        </button>
+        <button
+          onClick={() => onDelete(card._id)}
+          aria-label={`Delete ${card.cardName}`}
+          title="Delete card"
+          style={{
+            background: 'var(--surface-danger)',
+            border: '1px solid rgba(255, 94, 108, 0.2)',
+            borderRadius: 10, padding: '7px 10px',
+            color: T.accent.danger, fontSize: 13, cursor: 'pointer',
+            transition: 'all 0.16s', flexShrink: 0, lineHeight: 1,
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,94,108,0.2)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--surface-danger)'; }}
+        >
+          🗑
+        </button>
       </div>
     </motion.div>
   );
@@ -370,15 +532,56 @@ export default function LoyaltyCardsPage() {
   const [editItem, setEditItem] = useState(null);
   const [barcodeCard, setBarcodeCard] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState(FILTER_ALL);
   const { toast } = useSettings();
 
-  /* Lint fix: toast in dependency array */
   useEffect(() => {
     loyaltyCardApi.getAll()
       .then(({ data }) => setCards(data.cards || []))
       .catch(() => toast('Failed to load cards', 'error'))
       .finally(() => setLoading(false));
   }, [toast]);
+
+  /* ── Summary stats ────────────────────────────────────────── */
+  const summary = useMemo(() => {
+    const stats = { total: cards.length, active: 0, expiringSoon: 0, expired: 0 };
+    cards.forEach((c) => {
+      const s = getCardStatus(c);
+      if (s === 'expired') stats.expired++;
+      else if (s === 'expiring-soon') stats.expiringSoon++;
+      else stats.active++;
+    });
+    return stats;
+  }, [cards]);
+
+  /* ── Filtered cards ────────────────────────────────────────── */
+  const filtered = useMemo(() => {
+    let result = cards;
+
+    // Type filter
+    if (filter !== FILTER_ALL) {
+      result = result.filter((c) => c.cardType === filter);
+    }
+
+    // Search
+    if (search.trim()) {
+      const q = search.toLowerCase().trim();
+      result = result.filter((c) =>
+        c.cardName.toLowerCase().includes(q) ||
+        (c.issuer && c.issuer.toLowerCase().includes(q)) ||
+        (c.cardNumber && c.cardNumber.toLowerCase().includes(q))
+      );
+    }
+
+    return result;
+  }, [cards, filter, search]);
+
+  /* ── Active filter types (only show types that exist) ────── */
+  const activeTypes = useMemo(() => {
+    const types = new Set(cards.map((c) => c.cardType));
+    return [FILTER_ALL, ...CARD_TYPES.filter((t) => types.has(t))];
+  }, [cards]);
 
   /* Returns true on success → CardModal closes; false → stays open with error */
   const handleSave = useCallback(async (form) => {
@@ -413,7 +616,7 @@ export default function LoyaltyCardsPage() {
 
   return (
     <>
-      {/* Responsive CSS for the form grid — injected once at page level */}
+      {/* Responsive CSS for the form grid */}
       <style>{`
         .loyalty-form-grid {
           display: grid;
@@ -429,9 +632,30 @@ export default function LoyaltyCardsPage() {
             grid-column: 1 / -1 !important;
           }
         }
+        @keyframes pulse {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 0.25; }
+        }
+        .loyalty-search-bar {
+          position: relative;
+        }
+        .loyalty-search-bar::before {
+          content: '🔍';
+          position: absolute;
+          left: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          font-size: 13px;
+          pointer-events: none;
+          z-index: 1;
+        }
+        .loyalty-search-bar input {
+          padding-left: 38px !important;
+        }
       `}</style>
 
       <div className="fade-up" style={{ maxWidth: 900 }}>
+        {/* ── Page Header ──────────────────────────────────────── */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
           <div>
             <h1 className="page-title">Loyalty Cards</h1>
@@ -440,24 +664,99 @@ export default function LoyaltyCardsPage() {
           <button className="primary-btn" onClick={() => setShowAdd(true)}>+ Add Card</button>
         </div>
 
+        {/* ── Summary Stats ────────────────────────────────────── */}
+        {!loading && cards.length > 0 && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
+            {[
+              { label: 'Total Cards', value: summary.total, color: T.text.primary },
+              { label: 'Active', value: summary.active, color: T.accent.teal },
+              { label: 'Expiring Soon', value: summary.expiringSoon, color: T.accent.gold },
+              { label: 'Expired', value: summary.expired, color: T.accent.danger },
+            ].map((s) => (
+              <div key={s.label} className="stat-card">
+                <div style={{ fontSize: 11, color: T.text.tertiary, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{s.label}</div>
+                <div style={{ fontSize: 28, fontWeight: 800, color: s.color, fontFamily: 'var(--font-mono)' }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── Search + Filters ─────────────────────────────────── */}
+        {!loading && cards.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            {/* Search bar */}
+            <div className="loyalty-search-bar" style={{ marginBottom: 14 }}>
+              <input
+                className="input-field"
+                type="text"
+                placeholder="Search by name, issuer, or number…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search loyalty cards"
+                style={{ maxWidth: 380 }}
+              />
+            </div>
+
+            {/* Filter chips */}
+            {activeTypes.length > 2 && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {activeTypes.map((t) => (
+                  <button
+                    key={t}
+                    className={`radio-chip${filter === t ? ' active' : ''}`}
+                    onClick={() => setFilter(t)}
+                    aria-pressed={filter === t}
+                  >
+                    {t === FILTER_ALL ? 'All' : `${TYPE_ICONS[t] || ''} ${t}`}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Content ──────────────────────────────────────────── */}
         {loading ? (
-          <div style={{ textAlign: 'center', color: T.text.tertiary, padding: 48 }}>Loading cards…</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {[1, 2, 3].map((i) => <SkeletonCard key={i} />)}
+          </div>
         ) : cards.length === 0 ? (
-          <div className="glass-card" style={{ textAlign: 'center', padding: 48, color: T.text.tertiary }}>
-            <div style={{ fontSize: 36, marginBottom: 12 }}>💳</div>
-            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>No cards yet</div>
-            <div style={{ fontSize: 13 }}>Add your loyalty cards, memberships, and gift cards</div>
+          <div className="glass-card" style={{ textAlign: 'center', padding: '56px 24px', color: T.text.tertiary }}>
+            <div style={{ fontSize: 48, marginBottom: 16, lineHeight: 1 }}>💳</div>
+            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8, color: T.text.primary }}>No cards yet</div>
+            <div style={{ fontSize: 14, marginBottom: 24, maxWidth: 320, margin: '0 auto 24px', lineHeight: 1.6 }}>
+              Add your loyalty cards, memberships, and gift cards to keep them all in one place.
+            </div>
+            <button className="primary-btn" onClick={() => setShowAdd(true)}>+ Add Your First Card</button>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="glass-card" style={{ textAlign: 'center', padding: '48px 24px', color: T.text.tertiary }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>🔍</div>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>No cards match</div>
+            <div style={{ fontSize: 13 }}>
+              {search.trim() ? `No results for "${search}"` : `No ${filter} cards found`}
+            </div>
+            {(search.trim() || filter !== FILTER_ALL) && (
+              <button
+                className="secondary-btn"
+                style={{ marginTop: 16 }}
+                onClick={() => { setSearch(''); setFilter(FILTER_ALL); }}
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
             <AnimatePresence>
-              {cards.map((card) => (
-                <PhysicalCard key={card._id} card={card} onEdit={setEditItem} onDelete={(id) => setDeleteId(id)} onShowBarcode={setBarcodeCard} />
+              {filtered.map((card) => (
+                <LoyaltyCard key={card._id} card={card} onEdit={setEditItem} onDelete={(id) => setDeleteId(id)} onShowBarcode={setBarcodeCard} />
               ))}
             </AnimatePresence>
           </div>
         )}
 
+        {/* ── Modals ───────────────────────────────────────────── */}
         <AnimatePresence>
           {(showAdd || editItem) && (
             <CardModal item={editItem} onClose={() => { setShowAdd(false); setEditItem(null); }} onSave={handleSave} />
