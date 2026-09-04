@@ -91,10 +91,8 @@ const buildHtmlTemplate = (otp, type) => {
 
 const sendOTPEmail = async (toEmail, otp, type) => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    console.warn(
-      `[WARNING] Email credentials not configured. OTP for ${toEmail}: ${otp}`
-    );
-    return;
+    console.error('[EMAIL CONFIG ERROR] EMAIL_USER and EMAIL_PASS must be configured on the auth service.');
+    throw new Error('Email delivery is not configured. Please contact support.');
   }
 
   // Validate EMAIL_USER looks like an email address

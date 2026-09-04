@@ -158,7 +158,16 @@ export default function LandingPage({ onLogin }) {
     setErrors({}); setApiError(''); setLoading(true);
     try {
       const data = await authApi.forgotPassword(email);
-      setResetUserId(data.data?.userId || null);
+      const nextUserId = data.data?.userId;
+      setResetUserId(nextUserId || null);
+
+      // The API intentionally hides whether an email exists. Only enter the
+      // reset form when the server created a reset token for this account.
+      if (!nextUserId) {
+        setApiError('If that email exists, an OTP has been sent. Check your inbox or try again later.');
+        return;
+      }
+
       switchMode('reset');
     } catch (err) {
       setApiError(err.message);
