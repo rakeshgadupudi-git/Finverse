@@ -42,12 +42,19 @@ const register = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     });
 
-    await sendOTPEmail(email, otp, 'EMAIL_VERIFY');
+    // Try to send OTP email — don't fail registration if email fails
+    let emailWarning = '';
+    try {
+      await sendOTPEmail(email, otp, 'EMAIL_VERIFY');
+    } catch (emailErr) {
+      console.error('[REGISTER] Email send failed, but user + OTP created:', emailErr.message);
+      emailWarning = ' (Email delivery failed — use Resend OTP to try again)';
+    }
 
     return success(
       res,
       { userId: user._id },
-      'Registered successfully. Check your email for the OTP.',
+      `Registered successfully. Check your email for the OTP.${emailWarning}`,
       201
     );
   } catch (err) {
@@ -185,9 +192,16 @@ const forgotPassword = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
-    await sendOTPEmail(email, otp, 'PASSWORD_RESET');
+    // Try to send OTP email — don't fail the flow if email fails
+    let emailWarning = '';
+    try {
+      await sendOTPEmail(email, otp, 'PASSWORD_RESET');
+    } catch (emailErr) {
+      console.error('[FORGOT-PASSWORD] Email send failed, but OTP created:', emailErr.message);
+      emailWarning = ' (Email delivery failed — please try again)';
+    }
 
-    return success(res, { userId: user._id }, 'OTP sent to your email');
+    return success(res, { userId: user._id }, `OTP sent to your email${emailWarning}`);
   } catch (err) {
     next(err);
   }
@@ -275,7 +289,13 @@ const resendOtp = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
-    await sendOTPEmail(user.email, otp, type);
+    // Try to send OTP email — don't fail the flow if email fails
+    try {
+      await sendOTPEmail(user.email, otp, type);
+    } catch (emailErr) {
+      console.error('[RESEND-OTP] Email send failed, but OTP created:', emailErr.message);
+      return success(res, {}, 'OTP created but email delivery failed. Please try again.');
+    }
 
     return success(res, {}, 'OTP resent successfully');
   } catch (err) {

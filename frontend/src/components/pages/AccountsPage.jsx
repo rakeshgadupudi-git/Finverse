@@ -50,24 +50,32 @@ function AccountModal({ item, onClose, onSave }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <motion.div className="modal" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-        onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520, maxHeight: '90vh', overflowY: 'auto' }}>
+
+        {/* Sticky header — always visible while scrolling */}
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          marginBottom: 20, position: 'sticky', top: 0,
+          background: 'var(--bg-elevated, #111827)', zIndex: 1,
+          paddingBottom: 14, borderBottom: '1px solid var(--border-subtle)',
+        }}>
           <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{item ? 'Edit Account' : 'Add Account'}</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text.tertiary, fontSize: 20 }}>✕</button>
         </div>
+
         <form onSubmit={handleSubmit}>
           <div style={{ display: 'grid', gap: 14 }}>
 
-            {/* Row 1: Account Name (full width) */}
+            {/* Row 1: Account Name — full width */}
             <div>
               <label className="form-label">Account Name *</label>
               <input className="input-field" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. HDFC Savings" required />
             </div>
 
-            {/* Row 2: Account Type (full width — chip group needs space) */}
+            {/* Row 2: Account Type chips — full width */}
             <div>
               <label className="form-label">Account Type *</label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
                 {ACCOUNT_TYPES.map((t) => (
                   <button key={t} type="button" className={`radio-chip${form.accountType === t ? ' active' : ''}`} style={{ fontSize: 12 }} onClick={() => set('accountType', t)}>
                     {TYPE_ICONS[t]} {t}
@@ -76,7 +84,7 @@ function AccountModal({ item, onClose, onSave }) {
               </div>
             </div>
 
-            {/* Row 3: Institution + Balance (2-col) for non-credit, or Credit fields */}
+            {/* Row 3: Institution + Balance (2-col) for non-credit, or credit fields */}
             {!isCredit ? (
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 <div>
@@ -107,25 +115,25 @@ function AccountModal({ item, onClose, onSave }) {
               </>
             )}
 
-            {/* Row 4: Card Color + Notes (2-col) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: 12, alignItems: 'start' }}>
-              <div>
-                <label className="form-label">Card Color</label>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', paddingTop: 4 }}>
-                  {ACCENT_COLORS.map((c) => (
-                    <button key={c} type="button" onClick={() => set('color', c)} style={{
-                      width: 24, height: 24, borderRadius: '50%', background: c, cursor: 'pointer',
-                      border: `3px solid ${form.color === c ? 'var(--text-primary)' : 'transparent'}`, transition: 'border 0.15s',
-                    }} />
-                  ))}
-                  <input type="color" value={form.color} onChange={(e) => set('color', e.target.value)}
-                    style={{ width: 24, height: 24, border: 'none', borderRadius: '50%', cursor: 'pointer', background: 'none', padding: 0 }} />
-                </div>
+            {/* Row 4: Card Color — full width */}
+            <div>
+              <label className="form-label">Card Color</label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginTop: 6 }}>
+                {ACCENT_COLORS.map((c) => (
+                  <button key={c} type="button" onClick={() => set('color', c)} style={{
+                    width: 26, height: 26, borderRadius: '50%', background: c, cursor: 'pointer', flexShrink: 0,
+                    border: `3px solid ${form.color === c ? 'var(--text-primary)' : 'transparent'}`, transition: 'border 0.15s',
+                  }} />
+                ))}
+                <input type="color" value={form.color} onChange={(e) => set('color', e.target.value)}
+                  style={{ width: 26, height: 26, border: 'none', borderRadius: '50%', cursor: 'pointer', background: 'none', padding: 0, flexShrink: 0 }} />
               </div>
-              <div>
-                <label className="form-label">Notes</label>
-                <textarea className="input-field" value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} placeholder="Optional" style={{ resize: 'vertical' }} />
-              </div>
+            </div>
+
+            {/* Row 5: Notes — full width */}
+            <div>
+              <label className="form-label">Notes</label>
+              <textarea className="input-field" value={form.notes} onChange={(e) => set('notes', e.target.value)} rows={2} placeholder="Optional" style={{ resize: 'vertical' }} />
             </div>
 
           </div>

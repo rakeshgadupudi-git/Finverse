@@ -97,6 +97,15 @@ const sendOTPEmail = async (toEmail, otp, type) => {
     return;
   }
 
+  // Validate EMAIL_USER looks like an email address
+  if (!process.env.EMAIL_USER.includes('@')) {
+    console.error(
+      `[EMAIL CONFIG ERROR] EMAIL_USER="${process.env.EMAIL_USER}" is not a valid email address. ` +
+      `Set it to your full Gmail address (e.g., user@gmail.com). OTP for ${toEmail}: ${otp}`
+    );
+    return;
+  }
+
   const subject =
     type === 'EMAIL_VERIFY'
       ? 'FinTracker — Verify your email'
@@ -109,9 +118,21 @@ const sendOTPEmail = async (toEmail, otp, type) => {
       subject,
       html: buildHtmlTemplate(otp, type),
     });
+    console.log(`[EMAIL] OTP sent successfully to ${toEmail}`);
   } catch (err) {
-    console.error(`[EMAIL ERROR] Failed to send to ${toEmail}:`, err.message);
-    throw new Error(`Failed to send OTP email to ${toEmail}: ${err.message}`);
+    // Provide clear guidance for common Gmail SMTP errors
+    if (err.message.includes('535') || err.message.includes('Username and Password not accepted')) {
+      console.error(
+        `[EMAIL AUTH ERROR] Gmail rejected credentials. Make sure:\n` +
+        `  1. EMAIL_USER is your full Gmail address\n` +
+        `  2. EMAIL_PASS is a Google App Password (not your account password)\n` +
+        `  3. 2-Step Verification is enabled on your Google account\n` +
+        `  Generate App Password at: https://myaccount.google.com/apppasswords`
+      );
+    } else {
+      console.error(`[EMAIL ERROR] Failed to send to ${toEmail}:`, err.message);
+    }
+    throw new Error(`Failed to send OTP email. Please try again or contact support.`);
   }
 };
 
