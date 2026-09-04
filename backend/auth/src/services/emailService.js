@@ -1,22 +1,6 @@
-const nodemailer = require('nodemailer');
-const dns = require('dns');
+const { Resend } = require('resend');
 
-// Fix for Render IPv6 ENETUNREACH issue
-dns.setDefaultResultOrder('ipv4first');
-
-const getTransporter = () => {
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    // Force IPv4 natively at the socket level to fix Render ENETUNREACH
-    family: 4,
-  });
-};
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const buildHtmlTemplate = (otp, type) => {
   const title =
@@ -98,9 +82,9 @@ const buildHtmlTemplate = (otp, type) => {
 };
 
 const sendOTPEmail = async (toEmail, otp, type) => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+  if (!process.env.RESEND_API_KEY) {
     console.warn(
-      `[WARNING] Email credentials not configured. OTP for ${toEmail}: ${otp}`
+      `[WARNING] RESEND_API_KEY not configured. OTP for ${toEmail}: ${otp}`
     );
     return;
   }
@@ -111,12 +95,18 @@ const sendOTPEmail = async (toEmail, otp, type) => {
       : 'FinTracker — Reset your password';
 
   try {
-    await getTransporter().sendMail({
-      from: `"FinTracker" <${process.env.EMAIL_USER}>`,
+    const { data, error } = await resend.emails.send({
+      // Use onboarding@resend.dev for testing unless you have verified a custom domain
+      from: 'FinTracker <onboarding@resend.dev>',
       to: toEmail,
       subject,
       html: buildHtmlTemplate(otp, type),
     });
+
+    if (error) {
+      console.error(`[EMAIL ERROR] Resend API failed to send to ${toEmail}:`, error);
+      throw new Error(error.message);
+    }
   } catch (err) {
     console.error(`[EMAIL ERROR] Failed to send to ${toEmail}:`, err.message);
     throw new Error(`Failed to send OTP email to ${toEmail}: ${err.message}`);
