@@ -1,4 +1,8 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns');
+
+// Fix for Render IPv6 ENETUNREACH issue
+dns.setDefaultResultOrder('ipv4first');
 
 const getTransporter = () => {
   return nodemailer.createTransport({

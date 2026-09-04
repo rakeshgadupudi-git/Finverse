@@ -22,6 +22,7 @@ const debtRoutes           = require('./src/routes/debts');
 const accountRoutes        = require('./src/routes/accounts');
 
 const app = express();
+app.set('trust proxy', 1);
 
 // Security headers
 app.use(helmet());
