@@ -42,7 +42,8 @@ const register = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     });
 
-    await sendOTPEmail(email, otp, 'EMAIL_VERIFY');
+    // Send email asynchronously so it doesn't block the response and cause Vercel 502 timeouts
+    sendOTPEmail(email, otp, 'EMAIL_VERIFY').catch(err => console.error('Background email failed:', err));
 
     return success(
       res,
@@ -185,7 +186,8 @@ const forgotPassword = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
-    await sendOTPEmail(email, otp, 'PASSWORD_RESET');
+    // Send email asynchronously so it doesn't block the response and cause Vercel 502 timeouts
+    sendOTPEmail(email, otp, 'PASSWORD_RESET').catch(err => console.error('Background email failed:', err));
 
     return success(res, { userId: user._id }, 'OTP sent to your email');
   } catch (err) {
@@ -275,7 +277,8 @@ const resendOtp = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000),
     });
 
-    await sendOTPEmail(user.email, otp, type);
+    // Send email asynchronously so it doesn't block the response and cause Vercel 502 timeouts
+    sendOTPEmail(user.email, otp, type).catch(err => console.error('Background email failed:', err));
 
     return success(res, {}, 'OTP resent successfully');
   } catch (err) {
