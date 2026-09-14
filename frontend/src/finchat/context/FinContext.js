@@ -13,9 +13,6 @@
 
 
 export function getFinContext() {
-  // In a real app, these would come from local storage or context providers
-  // For now, we'll try to read from local storage or use defaults
-
   let transactions = [];
   let portfolio = [];
   let preferences = {
@@ -31,6 +28,25 @@ export function getFinContext() {
 
     const storedPortfolio = localStorage.getItem('fintracker_portfolio_holdings');
     if (storedPortfolio) portfolio = JSON.parse(storedPortfolio);
+
+    // Sync with live settings from SettingsContext
+    try {
+      const savedSettings = localStorage.getItem('fintracker_settings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        if (parsed.currency) preferences.currency = parsed.currency;
+        if (parsed.financial) {
+          const riskMap = { conservative: 'Low', balanced: 'Medium', aggressive: 'High' };
+          const horizonMap = { short: '1-3 years', medium: '5-10 years', long: '10+ years' };
+          if (parsed.financial.riskTolerance) {
+            preferences.riskTolerance = riskMap[parsed.financial.riskTolerance] || parsed.financial.riskTolerance;
+          }
+          if (parsed.financial.investmentHorizon) {
+            preferences.investmentHorizon = horizonMap[parsed.financial.investmentHorizon] || parsed.financial.investmentHorizon;
+          }
+        }
+      }
+    } catch { /* ignore parse errors */ }
 
     const storedPrefs = localStorage.getItem('fin_preferences');
     if (storedPrefs) preferences = { ...preferences, ...JSON.parse(storedPrefs) };

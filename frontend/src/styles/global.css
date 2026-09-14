@@ -1368,6 +1368,7 @@ select option {
     padding: 18px 14px;
     border-radius: 14px;
     width: 98vw;
+    max-width: 98vw;
   }
 
   .filter-pill {
@@ -1457,10 +1458,18 @@ select option {
   border-radius: 20px;
   padding: 28px 30px;
   width: 92vw;
+  max-width: 500px;
   max-height: 88vh;
   overflow-y: auto;
   box-shadow: 0 24px 80px rgba(0,0,0,0.6);
   position: relative;
+}
+
+/* ── Responsive table scroll wrapper ────────────────────────── */
+.table-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* ── Shared modal/form utilities ────────────────────────────── */

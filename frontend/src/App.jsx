@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import LandingPage from '@/components/pages/LandingPage';
 import AppShell from '@/components/layout/AppShell';
+import { clearAllUserHistory } from '@/finchat/memory/ChatMemory';
 
 export default function Home() {
   const [loggedIn, setLoggedIn] = useState(() => !!localStorage.getItem('fintracker_access_token'));
@@ -23,6 +24,8 @@ export default function Home() {
   };
 
   const handleLogout = () => {
+    // Clear chat history before removing user identity keys (ChatMemory uses email for scoping)
+    clearAllUserHistory();
     localStorage.removeItem('fintracker_access_token');
     localStorage.removeItem('fintracker_refresh_token');
     localStorage.removeItem('fintracker_username');

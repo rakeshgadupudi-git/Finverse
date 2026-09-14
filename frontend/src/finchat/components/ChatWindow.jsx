@@ -14,11 +14,13 @@ const QUICK_ACTIONS = [
 // ── Inline markdown renderer ──────────────────────────────────────────────
 function renderInline(text) {
   const parts = [];
-  const re = /(\*\*(.+?)\*\*|\*(.+?)\*)/g;
+  // Match **bold**, *italic*, and `inline code`
+  const re = /(\*\*(.+?)\*\*|\*(.+?)\*|`([^`]+)`)/g;
   let last = 0, m;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) parts.push(text.slice(last, m.index));
     if (m[0].startsWith('**')) parts.push(<strong key={m.index}>{m[2]}</strong>);
+    else if (m[0].startsWith('`')) parts.push(<code key={m.index} style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 4, fontSize: '0.9em', fontFamily: "'Roboto Mono', monospace" }}>{m[4]}</code>);
     else parts.push(<em key={m.index}>{m[3]}</em>);
     last = m.index + m[0].length;
   }
@@ -26,30 +28,147 @@ function renderInline(text) {
   return parts;
 }
 
-function renderMarkdown(text) {
-  const lines = text.split('\n');
+// ── Parse markdown table rows ────────────────────────────────────────────
+function parseTableRows(lines) {
+  const rows = [];
+  for (const line of lines) {
+    const cells = line.split('|').map(c => c.trim()).filter(Boolean);
+    // Skip separator rows like |---|---|
+    if (cells.every(c => /^[-:]+$/.test(c))) continue;
+    rows.push(cells);
+  }
+  return rows;
+}
+
+function renderTable(rows, startIdx) {
+  if (rows.length === 0) return null;
+  const header = rows[0];
+  const body = rows.slice(1);
   return (
-    <div className="finchat-msg-body">
-      {lines.map((line, i) => {
-        if (line.startsWith('### ')) {
-          return <div key={i} className="fc-heading" style={{ fontSize: 13 }}>{renderInline(line.slice(4))}</div>;
-        }
-        if (line.startsWith('## ')) {
-          return <div key={i} className="fc-heading" style={{ fontSize: 15 }}>{renderInline(line.slice(3))}</div>;
-        }
-        if (line.startsWith('# ')) {
-          return <div key={i} className="fc-heading" style={{ fontSize: 16 }}>{renderInline(line.slice(2))}</div>;
-        }
-        if (line.match(/^[-*] /)) {
-          return <div key={i} className="fc-bullet">• {renderInline(line.slice(2))}</div>;
-        }
-        if (line.trim() === '') {
-          return <div key={i} className="fc-spacer" />;
-        }
-        return <div key={i}>{renderInline(line)}</div>;
-      })}
+    <div key={`table-${startIdx}`} style={{ overflowX: 'auto', margin: '8px 0' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, lineHeight: 1.5 }}>
+        <thead>
+          <tr>
+            {header.map((cell, ci) => (
+              <th key={ci} style={{ padding: '6px 10px', borderBottom: '1px solid rgba(255,255,255,0.12)', textAlign: 'left', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap' }}>{renderInline(cell)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {body.map((row, ri) => (
+            <tr key={ri}>
+              {row.map((cell, ci) => (
+                <td key={ci} style={{ padding: '5px 10px', borderBottom: '1px solid rgba(255,255,255,0.05)', color: '#ccc' }}>{renderInline(cell)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
+}
+
+function renderMarkdown(text) {
+  const lines = text.split('\n');
+  const elements = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+
+    // ── Fenced code blocks (```) ──
+    if (line.trim().startsWith('```')) {
+      const lang = line.trim().slice(3).trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith('```')) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip closing ```
+      elements.push(
+        <pre key={`code-${i}`} style={{
+          background: 'rgba(0,0,0,0.35)', padding: '12px 14px', borderRadius: 10,
+          border: '1px solid rgba(255,255,255,0.06)', overflowX: 'auto',
+          fontFamily: "'Roboto Mono', monospace", fontSize: 12, lineHeight: 1.6,
+          margin: '6px 0', color: '#e0e0e0',
+        }}>
+          {lang && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>{lang}</div>}
+          <code>{codeLines.join('\n')}</code>
+        </pre>
+      );
+      continue;
+    }
+
+    // ── Tables (lines starting with |) ──
+    if (line.trim().startsWith('|')) {
+      const tableLines = [];
+      while (i < lines.length && lines[i].trim().startsWith('|')) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      const rows = parseTableRows(tableLines);
+      if (rows.length > 0) {
+        elements.push(renderTable(rows, i));
+      }
+      continue;
+    }
+
+    // ── Headings ──
+    if (line.startsWith('### ')) {
+      elements.push(<div key={i} className="fc-heading" style={{ fontSize: 13 }}>{renderInline(line.slice(4))}</div>);
+      i++; continue;
+    }
+    if (line.startsWith('## ')) {
+      elements.push(<div key={i} className="fc-heading" style={{ fontSize: 15 }}>{renderInline(line.slice(3))}</div>);
+      i++; continue;
+    }
+    if (line.startsWith('# ')) {
+      elements.push(<div key={i} className="fc-heading" style={{ fontSize: 16 }}>{renderInline(line.slice(2))}</div>);
+      i++; continue;
+    }
+
+    // ── Blockquotes ──
+    if (line.startsWith('> ')) {
+      elements.push(
+        <div key={i} style={{
+          borderLeft: '3px solid rgba(0,212,170,0.4)', paddingLeft: 12,
+          margin: '6px 0', color: 'rgba(255,255,255,0.7)', fontStyle: 'italic', fontSize: 13,
+        }}>{renderInline(line.slice(2))}</div>
+      );
+      i++; continue;
+    }
+
+    // ── Numbered lists ──
+    if (line.match(/^\d+\.\s/)) {
+      const match = line.match(/^(\d+)\.\s(.*)/);
+      elements.push(
+        <div key={i} className="fc-bullet" style={{ paddingLeft: 4 }}>
+          <span style={{ color: 'var(--teal)', fontWeight: 700, marginRight: 6, fontFamily: "'Roboto Mono', monospace", fontSize: 12 }}>{match[1]}.</span>
+          {renderInline(match[2])}
+        </div>
+      );
+      i++; continue;
+    }
+
+    // ── Unordered bullets ──
+    if (line.match(/^[-*] /)) {
+      elements.push(<div key={i} className="fc-bullet">• {renderInline(line.slice(2))}</div>);
+      i++; continue;
+    }
+
+    // ── Empty lines ──
+    if (line.trim() === '') {
+      elements.push(<div key={i} className="fc-spacer" />);
+      i++; continue;
+    }
+
+    // ── Regular paragraph ──
+    elements.push(<div key={i}>{renderInline(line)}</div>);
+    i++;
+  }
+
+  return <div className="finchat-msg-body">{elements}</div>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -65,7 +184,7 @@ export default function ChatWindow() {
 
   // Detect mobile viewport
   useEffect(() => {
-    const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+    const checkMobile = () => setIsMobile(window.innerWidth <= 1024);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
@@ -177,12 +296,13 @@ export default function ChatWindow() {
           style={{
             position: 'fixed',
             ...(isMobile ? {
-              inset: 0,
+              top: 54,
+              left: 0,
+              right: 0,
               bottom: 64,
               width: '100%',
               height: 'auto',
               borderRadius: '0',
-              right: 0,
             } : {
               bottom: 30,
               right: 30,

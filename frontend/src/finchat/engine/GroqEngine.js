@@ -74,14 +74,23 @@ export async function* streamChat(userInput) {
         const match = text.match(/\[STATUS:\s*(.*?)\]/);
         if (match) {
           yield { type: 'status', text: match[1].trim() };
+          // Pass through any text outside the status marker
+          const remaining = text.replace(/\[STATUS:\s*.*?\]/, '').trim();
+          if (remaining) {
+            fullResponse += remaining;
+            yield remaining;
+          }
           continue;
         }
       }
 
-      // Server-side error sentinel
+      // Server-side error sentinel — yield user-friendly message
       if (text.includes('[ERROR:')) {
         const match = text.match(/\[ERROR:\s*(.*?)\]/s);
-        yield match ? match[1].trim() : 'An unexpected error occurred. Please try again.';
+        const errorMsg = match
+          ? match[1].trim()
+          : 'An unexpected error occurred. Please try again.';
+        yield `⚠️ ${errorMsg}`;
         return;
       }
 

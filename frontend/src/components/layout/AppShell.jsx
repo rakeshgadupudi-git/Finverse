@@ -73,6 +73,7 @@ const NAV_GROUPS = [
     items: [
       { id: 'tax',         icon: '₹', label: 'Tax Calculator', sub: true },
       { id: 'calculators', icon: '∑', label: 'Calculators',    sub: true },
+      { id: 'settings',    icon: '⚙', label: 'Settings',       sub: true },
     ],
   },
 ];
