@@ -1,4 +1,4 @@
-<![CDATA[# FinTracker — Personal Finance & Stock Intelligence Platform
+# FinTracker — Personal Finance & Stock Intelligence Platform
 
 > An all-in-one personal finance management platform with AI-powered insights, stock market intelligence, and an LLM-backed financial assistant — built for India.
 
@@ -436,4 +436,3 @@ Detailed deployment steps are documented in [`docs/deployment_guide.md`](docs/de
 ## 👤 Author
 
 **Rakesh Gadupudi** — [github.com/rakeshgadupudi-git](https://github.com/rakeshgadupudi-git)
-]]>
