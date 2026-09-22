@@ -1,6 +1,17 @@
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let resendClient = null;
+
+const getResendClient = () => {
+  if (!resendClient && process.env.RESEND_API_KEY) {
+    try {
+      resendClient = new Resend(process.env.RESEND_API_KEY);
+    } catch (err) {
+      console.warn('[WARNING] Failed to initialize Resend client:', err.message);
+    }
+  }
+  return resendClient;
+};
 
 const buildHtmlTemplate = (otp, type) => {
   const title =
@@ -82,9 +93,18 @@ const buildHtmlTemplate = (otp, type) => {
 };
 
 const sendOTPEmail = async (toEmail, otp, type) => {
-  if (!process.env.RESEND_API_KEY) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey || apiKey.includes('your_api_key')) {
     console.warn(
       `[WARNING] RESEND_API_KEY not configured. OTP for ${toEmail}: ${otp}`
+    );
+    return;
+  }
+
+  const client = getResendClient();
+  if (!client) {
+    console.warn(
+      `[WARNING] Resend client not available. OTP for ${toEmail}: ${otp}`
     );
     return;
   }
@@ -95,7 +115,7 @@ const sendOTPEmail = async (toEmail, otp, type) => {
       : 'FinTracker — Reset your password';
 
   try {
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await client.emails.send({
       // Use onboarding@resend.dev for testing unless you have verified a custom domain
       from: 'FinTracker <onboarding@resend.dev>',
       to: toEmail,

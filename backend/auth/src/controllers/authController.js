@@ -42,8 +42,17 @@ const register = async (req, res, next) => {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     });
 
-    // Send email asynchronously so it doesn't block the response and cause Vercel 502 timeouts
-    sendOTPEmail(email, otp, 'EMAIL_VERIFY').catch(err => console.error('Background email failed:', err));
+    // Await the email send so the OTP is guaranteed to be delivered before responding.
+    // Previously this was fire-and-forget (.catch), which caused the email to be silently
+    // dropped on cold-started Render free-tier instances where the execution context was
+    // terminated after the response was sent but before the detached promise completed.
+    try {
+      await sendOTPEmail(email, otp, 'EMAIL_VERIFY');
+    } catch (emailErr) {
+      console.error('[REGISTER] Failed to send verification email:', emailErr.message);
+      // Still return success — the user account and OTP are created;
+      // they can use "Resend OTP" to retry email delivery.
+    }
 
     return success(
       res,

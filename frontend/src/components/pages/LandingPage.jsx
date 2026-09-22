@@ -76,7 +76,12 @@ export default function LandingPage({ onLogin }) {
     try {
       const data = await authApi.register(name.trim(), email, pass, confirmPass);
       setUserId(data.data.userId);
-      switchMode('otp');
+      // Don't use switchMode('otp') here — it calls resetForm() which clears
+      // the email state, causing the OTP screen to show an empty "sent to" address.
+      // Only clear sensitive fields and switch mode directly.
+      setPass(''); setConfirmPass(''); setErrors({}); setApiError('');
+      setOtpDigits(['', '', '', '', '', '']);
+      setMode('otp');
     } catch (err) {
       setApiError(err.message);
       triggerShake();
