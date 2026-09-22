@@ -3,12 +3,9 @@
 ### Working Demo
 
 <video src="./fintracker.mp4" controls="controls" style="max-width: 100%;">
-  Your browser does not support the video tag.
 </video>
 
 FinTracker is a multi-service personal finance platform built around a React frontend, two Node/Express backend services, and an optional FastAPI ML microservice. The repository combines personal finance workflows like transactions, goals, bills, and account tracking with market-data features such as stock discovery, live prices, news, AI insights, and chat-based financial assistance.
-
-This README is written for developers who need to understand how the project is structured, how the services interact, and how to boot the stack locally without reverse-engineering the source tree.
 
 ## Architecture
 
